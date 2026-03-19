@@ -20,7 +20,6 @@ namespace AsyncToolWindowSample
     /// </summary>
     internal static class PackageIds
     {
-        // Existing
         public const int ShowToolWindowId   = 0x0100;
 
         // §6 dynamic commands
@@ -31,7 +30,10 @@ namespace AsyncToolWindowSample
         // §Config — Config Editor tool window
         public const int CmdIdConfigEditor  = 0x0300;
 
-        // §Settings — Settings dialog (Tools menu)
+        // §Settings — simple Settings dialog
         public const int CmdIdSettings      = 0x0400;
+
+        // §JsonSettings — JSON editor dialog
+        public const int CmdIdJsonSettings  = 0x0500;
     }
 }

@@ -27,6 +27,7 @@ namespace AsyncToolWindowSample
         supportsAutomation: true)]
     public sealed class MyPackage : AsyncPackage
     {
+        // ── Services ──────────────────────────────────────────────────────
         public OutputWindowService   OutputWindow   { get; private set; }
         public StatusBarService      StatusBar      { get; private set; }
         public SelectionService      Selection      { get; private set; }
@@ -38,11 +39,14 @@ namespace AsyncToolWindowSample
         public ToolbarService        Toolbar        { get; private set; }
         public ConfigurationService  Config         { get; private set; }
 
+        /// <summary>JSON-based configuration service (§JsonSettings).</summary>
+        public JsonConfigService     JsonConfig     { get; private set; }
+
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
         {
-            // ── Construct services ────────────────────────────────────────
+            // ── Construct ─────────────────────────────────────────────────
             OutputWindow = new OutputWindowService(this);
             StatusBar    = new StatusBarService(this);
             Selection    = new SelectionService(this);
@@ -50,6 +54,7 @@ namespace AsyncToolWindowSample
             Project      = new ProjectService(this);
             Options      = new OptionsService(this);
             Config       = new ConfigurationService(this, OutputWindow);
+            JsonConfig   = new JsonConfigService(this, OutputWindow);
             Events       = new EventService(this, OutputWindow);
             Toolbar      = new ToolbarService(this, OutputWindow);
             Menu         = new MenuService(this);
@@ -59,16 +64,16 @@ namespace AsyncToolWindowSample
             await StatusBar.InitializeAsync();
             await Selection.InitializeAsync();
             await Config.InitializeAsync();
+            await JsonConfig.InitializeAsync();
 
-            // ── Switch to UI thread ───────────────────────────────────────
+            // ── UI thread ─────────────────────────────────────────────────
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
             await ShowToolWindow.InitializeAsync(this);
             await Menu.InitializeAsync();
             await ShowConfigEditor.InitializeAsync(this);
-
-            // §Settings: đăng ký lệnh mở Settings dialog từ Tools menu
             await ShowSettings.InitializeAsync(this);
+            await ShowJsonSettings.InitializeAsync(this);
 
             OutputWindow.Log("AsyncToolWindowSample loaded successfully.");
             StatusBar.SetText("Async Tool Window Sample loaded.");
@@ -76,10 +81,8 @@ namespace AsyncToolWindowSample
 
         public override IVsAsyncToolWindowFactory GetAsyncToolWindowFactory(Guid toolWindowType)
         {
-            if (toolWindowType.Equals(Guid.Parse(SampleToolWindow.WindowGuidString)))
-                return this;
-            if (toolWindowType.Equals(Guid.Parse(ConfigEditorWindow.WindowGuidString)))
-                return this;
+            if (toolWindowType.Equals(Guid.Parse(SampleToolWindow.WindowGuidString)))  return this;
+            if (toolWindowType.Equals(Guid.Parse(ConfigEditorWindow.WindowGuidString))) return this;
             return null;
         }
 
@@ -109,7 +112,8 @@ namespace AsyncToolWindowSample
                     Options      = Options,
                     Menu         = Menu,
                     Toolbar      = Toolbar,
-                    Config       = Config
+                    Config       = Config,
+                    JsonConfig   = JsonConfig
                 };
             }
 
@@ -128,8 +132,7 @@ namespace AsyncToolWindowSample
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
-                Events?.Dispose();
+            if (disposing) Events?.Dispose();
             base.Dispose(disposing);
         }
     }

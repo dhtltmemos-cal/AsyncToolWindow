@@ -13,17 +13,17 @@
     <!-- ================================================================ -->
     <Groups>
 
-      <!-- Group under Tools menu for dynamic commands -->
+      <!-- §6 dynamic commands group (Tools menu) -->
       <Group guid="guidMyPackageCmdSet" id="DynamicCmdGroup" priority="0x0700">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
       </Group>
 
-      <!-- Group under Tools menu for Settings (separator-style, priority thấp hơn) -->
+      <!-- §Settings + §JsonSettings share this group (Tools menu) -->
       <Group guid="guidMyPackageCmdSet" id="SettingsCmdGroup" priority="0x0800">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
       </Group>
 
-      <!-- Group in code-editor context menu -->
+      <!-- Context menu group (code-editor right-click) -->
       <Group guid="guidMyPackageCmdSet" id="ContextMenuGroup" priority="0x0100">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN"/>
       </Group>
@@ -35,7 +35,7 @@
     <!-- ================================================================ -->
     <Buttons>
 
-      <!-- Open Sample Tool Window (View > Other Windows) -->
+      <!-- View > Other Windows > Sample Tool Window -->
       <Button guid="guidMyPackageCmdSet" id="ShowToolWindowId" priority="0x0100" type="Button">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1"/>
         <Icon guid="ImageCatalogGuid" id="ImageIcon"/>
@@ -45,7 +45,7 @@
         </Strings>
       </Button>
 
-      <!-- Open Config Editor Tool Window (View > Other Windows) -->
+      <!-- View > Other Windows > Config Editor -->
       <Button guid="guidMyPackageCmdSet" id="CmdIdConfigEditor" priority="0x0101" type="Button">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1"/>
         <Icon guid="ImageCatalogGuid" id="Settings"/>
@@ -56,10 +56,7 @@
         </Strings>
       </Button>
 
-      <!-- ============================================================= -->
-      <!-- Settings dialog — xuất hiện trong Tools menu                  -->
-      <!-- Giống WakaTime > Settings trong ảnh mẫu                       -->
-      <!-- ============================================================= -->
+      <!-- Tools > Settings... (dùng icon Settings đã verified hoạt động) -->
       <Button guid="guidMyPackageCmdSet" id="CmdIdSettings" priority="0x0100" type="Button">
         <Parent guid="guidMyPackageCmdSet" id="SettingsCmdGroup"/>
         <Icon guid="ImageCatalogGuid" id="Settings"/>
@@ -70,7 +67,16 @@
         </Strings>
       </Button>
 
-      <!-- §6 — Toggle command -->
+      <!-- Tools > Settings (JSON)... — KHÔNG dùng Icon riêng, tránh lỗi Bitmap slot -->
+      <Button guid="guidMyPackageCmdSet" id="CmdIdJsonSettings" priority="0x0101" type="Button">
+        <Parent guid="guidMyPackageCmdSet" id="SettingsCmdGroup"/>
+        <Strings>
+          <ButtonText>Async Tool Window Sample Settings (JSON)...</ButtonText>
+          <CommandName>AsyncToolWindowSample.JsonSettings</CommandName>
+        </Strings>
+      </Button>
+
+      <!-- §6 Toggle -->
       <Button guid="guidMyPackageCmdSet" id="CmdIdToggleFeature" priority="0x0200" type="Button">
         <Parent guid="guidMyPackageCmdSet" id="DynamicCmdGroup"/>
         <CommandFlag>DynamicItemStart</CommandFlag>
@@ -81,7 +87,7 @@
         </Strings>
       </Button>
 
-      <!-- §6 — Doc-Action command -->
+      <!-- §6 DocAction -->
       <Button guid="guidMyPackageCmdSet" id="CmdIdDocAction" priority="0x0201" type="Button">
         <Parent guid="guidMyPackageCmdSet" id="DynamicCmdGroup"/>
         <CommandFlag>DynamicItemStart</CommandFlag>
@@ -92,7 +98,7 @@
         </Strings>
       </Button>
 
-      <!-- §6 — Context-info (Tools menu) -->
+      <!-- §6 ContextInfo (Tools menu) -->
       <Button guid="guidMyPackageCmdSet" id="CmdIdContextInfo" priority="0x0100" type="Button">
         <Parent guid="guidMyPackageCmdSet" id="DynamicCmdGroup"/>
         <CommandFlag>DefaultDisabled</CommandFlag>
@@ -102,7 +108,7 @@
         </Strings>
       </Button>
 
-      <!-- §6 — Context-info (code-editor right-click) -->
+      <!-- §6 ContextInfo (code-editor right-click) -->
       <Button guid="guidMyPackageCmdSet" id="CmdIdContextInfo" priority="0x0100" type="Button">
         <Parent guid="guidMyPackageCmdSet" id="ContextMenuGroup"/>
         <CommandFlag>DefaultDisabled</CommandFlag>
@@ -133,6 +139,7 @@
       <IDSymbol name="ShowToolWindowId"   value="0x0100" />
       <IDSymbol name="CmdIdConfigEditor"  value="0x0300" />
       <IDSymbol name="CmdIdSettings"      value="0x0400" />
+      <IDSymbol name="CmdIdJsonSettings"  value="0x0500" />
       <IDSymbol name="DynamicCmdGroup"    value="0x1100" />
       <IDSymbol name="ContextMenuGroup"   value="0x1200" />
       <IDSymbol name="SettingsCmdGroup"   value="0x1300" />

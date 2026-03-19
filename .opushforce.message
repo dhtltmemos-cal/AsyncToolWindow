@@ -1,65 +1,75 @@
-(feat) 2026-03-19 – §Settings: Settings dialog từ Tools menu (kiểu WakaTime Settings)
+(feat) 2026-03-19 – §JsonSettings: JSON editor dialog với Format/Validate/Diff log
 
-feat(SettingsDialog): add modal WPF settings dialog accessible via Tools menu
-feat(ShowSettings): register menu command "Async Tool Window Sample Settings..."
-fix(csproj): add System.Xml.Linq reference, add all new Compile/Page entries
+feat(JsonConfigService): add JSON-based config service with flatten diff, dot-path getter
+feat(JsonSettingsDialog): add full-width JSON editor dialog with live feedback
+feat(ShowJsonSettings): register "Settings (JSON)..." in Tools menu (CmdIdJsonSettings 0x0500)
 
 Nguyên nhân:
-  Người dùng muốn mở settings qua Tools menu theo kiểu WakaTime Settings —
-  một popup dialog modal với các field nhập liệu, Save/Cancel buttons.
+  Cần form cấu hình linh hoạt hơn — dùng JSON object làm đầu vào thay vì
+  từng field riêng lẻ, cho phép mở rộng schema không cần sửa UI, paste
+  toàn bộ cấu hình, format đẹp và thấy rõ những gì thay đổi khi save.
 
 Thay đổi chính:
 
-  NEW src/ToolWindows/SettingsDialog.xaml
-    - WPF Window, ResizeMode=NoResize, WindowStartupLocation=CenterScreen
-    - Fields: ServerUrl (TextBox), ApiKey (PasswordBox), Timeout, MaxResults
-    - ComboBox OutputFormat: JSON/XML/CSV/Plain Text
-    - CheckBox: Debug, Show Status Bar
-    - Validation border (màu cam) hiện lỗi inline
-    - Buttons: Save (IsDefault=True), Cancel (IsCancel=True)
+  NEW src/Services/JsonConfigService.cs
+    - DefaultJson: schema mặc định 11 keys (bao gồm nested Advanced{})
+    - InitializeAsync(): tạo file JSON nếu chưa có
+    - GetSnapshot() → JObject deep clone
+    - Get<T>(dotPath): dot-path getter (vd "Advanced.RetryCount")
+    - Typed properties: ServerUrl, ApiKey, TimeoutSeconds, MaxResults...
+    - TryParse(json): validate JSON, trả về (valid, JObject, error)
+    - FormatJson(json): format với Formatting.Indented
+    - Save(json): parse → DiffKeys (flatten) → log từng key thay đổi → ghi file
+    - ResetToDefault(): ghi DefaultJson
+    - event ConfigSaved: list changedKeys sau mỗi Save thành công
+    - Flatten() helper: "Parent.Child" = "value" dictionary cho diff
+    - ApiKey masking trong log
 
-  NEW src/ToolWindows/SettingsDialog.xaml.cs
-    - OnLoaded(): load từ ConfigurationService
-    - Validate(): URL format, int range
-    - BtnSave_Click(): validate → Config.Set() × 8 keys → log → StatusBar → Close
-    - BtnCancel_Click(): Close
+  NEW src/ToolWindows/JsonSettingsDialog.xaml
+    - WPF Window resizable (640×580 default)
+    - Header banner (ActiveCaption color)
+    - Toolbar: Format, Validate, Reset Default, Reload, Copy, Paste
+    - TextBox Consolas font, AcceptsReturn/Tab, undo 100 steps
+    - Live status bar: màu xanh (OK) / cam (error) / xanh dương (info)
+    - Char + line counter cập nhật realtime
+    - File path hint ở footer
+    - Save (IsDefault) / Cancel (IsCancel)
 
-  NEW src/Commands/ShowSettings.cs
-    - MenuCommand CmdIdSettings (0x0400)
-    - Execute(): new SettingsDialog(Config, OutputWindow, StatusBar).ShowDialog()
+  NEW src/ToolWindows/JsonSettingsDialog.xaml.cs
+    - OnLoaded: load JSON từ JsonConfigService
+    - BtnFormat: format + preserve caret line
+    - BtnValidate: TryParse + log kết quả
+    - BtnReset: confirm dialog → load DefaultJson
+    - BtnReload: reload từ service
+    - BtnCopy/BtnPaste: clipboard với auto-format khi paste
+    - TxtJson_TextChanged: brace count live check
+    - BtnSave: Save(json) → summary message → StatusBar → Close
 
-  MOD src/PackageGuids.cs
-    - +CmdIdSettings = 0x0400
+  NEW src/Commands/ShowJsonSettings.cs
+    - MenuCommand CmdIdJsonSettings (0x0500)
+    - Execute(): new JsonSettingsDialog(...).ShowDialog()
 
-  MOD src/VSCommandTable.vsct
-    - +Group SettingsCmdGroup (parent=IDM_VS_MENU_TOOLS, priority=0x0800)
-    - +Button CmdIdSettings → "Async Tool Window Sample Settings..."
-    - +IDSymbol SettingsCmdGroup = 0x1300
-    - +IDSymbol CmdIdSettings    = 0x0400
-
-  MOD src/MyPackage.cs
-    - +await ShowSettings.InitializeAsync(this)
-
+  MOD src/PackageGuids.cs        — +CmdIdJsonSettings = 0x0500
+  MOD src/VSCommandTable.vsct    — +SettingsCmdGroup Button CmdIdJsonSettings
+                                    +IDSymbol CmdIdJsonSettings = 0x0500
+  MOD src/MyPackage.cs           — +JsonConfig property, +InitializeAsync,
+                                    +ShowJsonSettings.InitializeAsync
+  MOD src/ToolWindows/SampleToolWindowState.cs — +JsonConfig property
   MOD src/AsyncToolWindowSample.csproj
-    - +Compile ShowSettings.cs
-    - +Compile SettingsDialog.xaml.cs
-    - +Page SettingsDialog.xaml
-    - +Reference System.Xml.Linq  ← fix lỗi CS0234 XDocument/XElement
-
-  NEW docs/tutorials/settings-dialog_2026-03-19.md
-
-Tác dụng:
-  - Tools menu xuất hiện "Async Tool Window Sample Settings..."
-  - Click → mở popup modal, load config hiện tại
-  - Save → validate + lưu file XML + log ra Output + update StatusBar
-  - Cancel → đóng không lưu
+    — +Compile JsonConfigService.cs, ShowJsonSettings.cs, JsonSettingsDialog.xaml.cs
+    — +Page JsonSettingsDialog.xaml
+    — +Reference System.Linq (cho LINQ trong JsonConfigService)
+    — System.Xml.Linq đã có từ fix trước
+  NEW docs/tutorials/json-settings-dialog_2026-03-19.md
 
 Files thay đổi:
-  - src/ToolWindows/SettingsDialog.xaml          (NEW)
-  - src/ToolWindows/SettingsDialog.xaml.cs       (NEW)
-  - src/Commands/ShowSettings.cs                 (NEW)
+  - src/Services/JsonConfigService.cs              (NEW)
+  - src/ToolWindows/JsonSettingsDialog.xaml        (NEW)
+  - src/ToolWindows/JsonSettingsDialog.xaml.cs     (NEW)
+  - src/Commands/ShowJsonSettings.cs               (NEW)
   - src/PackageGuids.cs
   - src/VSCommandTable.vsct
   - src/MyPackage.cs
+  - src/ToolWindows/SampleToolWindowState.cs
   - src/AsyncToolWindowSample.csproj
-  - docs/tutorials/settings-dialog_2026-03-19.md (NEW)
+  - docs/tutorials/json-settings-dialog_2026-03-19.md (NEW)

@@ -63,6 +63,7 @@
     <Compile Include="Commands\ShowToolWindow.cs" />
     <Compile Include="Commands\ShowConfigEditor.cs" />
     <Compile Include="Commands\ShowSettings.cs" />
+    <Compile Include="Commands\ShowJsonSettings.cs" />
     <!-- Services -->
     <Compile Include="Services\OutputWindowService.cs" />
     <Compile Include="Services\StatusBarService.cs" />
@@ -76,6 +77,7 @@
     <Compile Include="Services\MenuService.cs" />
     <Compile Include="Services\ToolbarService.cs" />
     <Compile Include="Services\ConfigurationService.cs" />
+    <Compile Include="Services\JsonConfigService.cs" />
     <!-- Tagging -->
     <Compile Include="Tagging\TodoTagger.cs" />
     <!-- Tool Windows -->
@@ -88,9 +90,12 @@
     <Compile Include="ToolWindows\ConfigEditorControl.xaml.cs">
       <DependentUpon>ConfigEditorControl.xaml</DependentUpon>
     </Compile>
-    <!-- Settings Dialog -->
     <Compile Include="ToolWindows\SettingsDialog.xaml.cs">
       <DependentUpon>SettingsDialog.xaml</DependentUpon>
+    </Compile>
+    <!-- JSON Settings Dialog -->
+    <Compile Include="ToolWindows\JsonSettingsDialog.xaml.cs">
+      <DependentUpon>JsonSettingsDialog.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -208,6 +213,7 @@
     <Reference Include="Microsoft.VisualStudio.Validation, Version=15.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.VisualStudio.Validation.15.3.53\lib\net45\Microsoft.VisualStudio.Validation.dll</HintPath>
     </Reference>
+    <!-- Newtonsoft.Json — used by JsonConfigService -->
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -224,6 +230,7 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Design" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Linq" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
@@ -251,8 +258,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <!-- Settings Dialog XAML -->
     <Page Include="ToolWindows\SettingsDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="ToolWindows\JsonSettingsDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
