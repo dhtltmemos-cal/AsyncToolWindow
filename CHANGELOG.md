@@ -5,90 +5,130 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] – 2026-03-19 (patch)
+## [Unreleased] – 2026-03-19 (feat: selection-api)
+
+### Added
+
+#### `src/Services/SelectionService.cs` *(new file)*
+- **Mục đích:** Tách biệt logic truy cập Selection/Caret của VS thành service riêng,
+  hỗ trợ cả hai tầng API:
+  - **Tier 1 – DTE `TextSelection` (COM):** đơn giản, không cần MEF, phù hợp thao tác
+    điều hướng, tìm kiếm, chọn vùng văn bản theo dòng/offset 1-based.
+  - **Tier 2 – `IWpfTextView` (MEF):** chính xác, managed, hỗ trợ multi-caret, đọc/ghi
+    buffer qua `ITextEdit` transaction, offset 0-based.
+- **DTOs (data transfer objects) bổ sung:**
+  - `DteCaretInfo` – snapshot caret 1-based từ DTE.
+  - `MefCaretInfo` – snapshot caret 0-based từ MEF.
+  - `SelectionSpanInfo` – thông tin một `SnapshotSpan` đã chọn.
+- **Public API:**
+  - `InitializeAsync()` – resolve MEF `IVsEditorAdaptersFactoryService` qua
+    `SComponentModel`; safe to call on background thread.
+  - **Tier 1:** `GetDteSelection()`, `GetDteCaretInfo()`, `GotoLine()`,
+    `SelectAll()`, `SelectCurrentLine()`, `CollapseSelection()`, `FindText()`.
+  - **Tier 2:** `GetActiveWpfTextView()`, `GetMefCaretInfo()`,
+    `GetMefSelectedSpans()`, `InsertAtCaret()`, `ReplaceSelection()`,
+    `GetBufferText()`.
+- **Lý do:** Mở rộng demo extension theo tài liệu VS2017 Extension API Reference,
+  phần 3 "Selection APIs".
+
+### Changed
+
+#### `src/ToolWindows/SampleToolWindowState.cs`
+- **Thêm** property `SelectionService Selection`.
+- **Lý do:** Truyền service xuống Tool Window Control theo cùng pattern với
+  `OutputWindowService` và `StatusBarService`.
+
+#### `src/MyPackage.cs`
+- **Thêm** property `SelectionService Selection` (singleton).
+- **`InitializeAsync`:** khởi tạo `SelectionService` và gọi `InitializeAsync()`
+  song song với hai service hiện có.
+- **`InitializeToolWindowAsync`:** populate `SampleToolWindowState.Selection`.
+- **Lý do:** Package là nơi duy nhất resolve VS services – tránh service locator
+  rải rác.
+
+#### `src/ToolWindows/SampleToolWindowControl.xaml`
+- **Thêm** 9 button mới chia thành hai nhóm:
+  - *Selection (DTE / Tier 1):*
+    - "Show Caret Info (DTE)" – in Line/Col/Anchor/Active/Mode vào Output.
+    - "Select Current Line (DTE)" – `SelectLine()`.
+    - "Find 'TODO' (DTE)" – `FindText("TODO")`, báo found/not found.
+    - "Collapse Selection (DTE)" – `Collapse()`.
+  - *Selection (MEF / Tier 2):*
+    - "Show Caret Info (MEF)" – in Offset/Line/Col/TotalChars/ContentType.
+    - "Show Selected Spans (MEF)" – in tất cả `SnapshotSpan` đang chọn.
+    - "Insert Text at Caret (MEF)" – chèn comment placeholder qua `ITextEdit`.
+    - "Replace Selection (MEF)" – wrap selection trong comment qua `ITextEdit`.
+    - "Buffer Char Count (MEF)" – đếm chars và lines của buffer hiện tại.
+- **Thêm** `ScrollViewer` bao ngoài `StackPanel` để Tool Window có thể scroll khi
+  danh sách button dài hơn chiều cao cửa sổ.
+- **`d:DesignHeight`** tăng từ 450 → 720 để khớp layout mới.
+- **Lý do:** Cần UI demo trực tiếp trong Tool Window theo đúng mục tiêu extension.
+
+#### `src/ToolWindows/SampleToolWindowControl.xaml.cs`
+- **Thêm** property `Selection => _state.Selection`.
+- **Thêm** 9 handler tương ứng 9 button mới:
+  - `Button_DteCaretInfo_Click` – hiện `DteCaretInfo` vào Output Window.
+  - `Button_DteSelectLine_Click` – gọi `SelectCurrentLine()`.
+  - `Button_DteFindTodo_Click` – gọi `FindText("TODO")`.
+  - `Button_DteCollapse_Click` – gọi `CollapseSelection()`.
+  - `Button_MefCaretInfo_Click` – hiện `MefCaretInfo` vào Output Window.
+  - `Button_MefSelectedSpans_Click` – hiện tất cả spans vào Output Window.
+  - `Button_MefInsert_Click` – gọi `InsertAtCaret()`.
+  - `Button_MefReplace_Click` – gọi `ReplaceSelection()`.
+  - `Button_MefBufferCount_Click` – gọi `GetBufferText()` và đếm.
+- **Thêm** helper `Truncate(string, int)` để tránh log quá dài.
+- **Lý do:** Demo đầy đủ hai tầng Selection API theo tài liệu, không block UI thread.
+
+#### `src/AsyncToolWindowSample.csproj`
+- **Thêm** `<Compile Include="Services\SelectionService.cs" />`.
+- **Thêm** 4 `<Reference>` cho các managed assemblies cần thiết cho Tier 2:
+  - `Microsoft.VisualStudio.ComponentModelHost` (MEF container)
+  - `Microsoft.VisualStudio.Editor` (`IVsEditorAdaptersFactoryService`)
+  - `Microsoft.VisualStudio.Text.Logic`
+  - `Microsoft.VisualStudio.Text.UI` / `Microsoft.VisualStudio.Text.UI.Wpf`
+    (`IWpfTextView`, `ITextSelection`, `ITextCaret`)
+- **Lý do:** Compiler cần resolve các interface MEF từ VS managed assemblies;
+  chúng không có HintPath vì resolve qua `AssemblySearchPaths` của VS.
+
+---
+
+## [Unreleased] – 2026-03-19 (patch: compiler-errors)
 
 ### Fixed
 
 #### `src/Services/StatusBarService.cs`
 - **CS0165 – Use of unassigned local variable 'frozen':**
   Đổi `_statusBar?.IsFrozen(out int frozen)` thành `int frozen = 0; _statusBar?.IsFrozen(out frozen)`.
-  Nguyên nhân: null-conditional operator `?.` có thể bỏ qua lời gọi, khiến `out` param không bao giờ được gán; compiler bắt đúng lỗi.
-- **CS1503 (×2) – Argument 1: cannot convert from 'ref ulong' to 'ref uint':**
-  `IVsStatusbar.Progress` khai báo tham số đầu là `ref uint`, không phải `ref ulong`.
-  Đổi signature `ReportProgress(ref ulong cookie, …)` và `ClearProgress(ref ulong cookie)` thành `ref uint cookie`.
+- **CS1503 (×2) – ref ulong → ref uint:**
+  `IVsStatusbar.Progress` nhận `ref uint`; đổi `ReportProgress`/`ClearProgress` sang `ref uint cookie`.
 
 #### `src/ToolWindows/SampleToolWindowControl.xaml.cs`
-- Đổi khai báo `ulong cookie = 0` → `uint cookie = 0` trong `Button_Progress_Click`
-  để khớp với signature đã sửa của `StatusBarService`.
-
-
-
-All notable changes to **AsyncToolWindowSample** are documented here.
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+- Đổi `ulong cookie = 0` → `uint cookie = 0` trong `Button_Progress_Click`.
 
 ---
 
-## [Unreleased] – 2026-03-19
+## [Unreleased] – 2026-03-19 (feat: output-window-status-bar)
 
 ### Added
 
 #### `src/Services/OutputWindowService.cs` *(new file)*
-- **Mục đích:** Tách biệt logic tương tác với Output Window thành một service riêng, tuân theo nguyên tắc Single Responsibility.
-- **Nội dung:**
-  - `OutputWindowService(AsyncPackage)` – constructor nhận package để gọi `GetServiceAsync`.
-  - `InitializeAsync()` – tạo (hoặc lấy lại) custom Output pane bằng `SVsOutputWindow` / `IVsOutputWindow.CreatePane`. Switch sang UI thread nội bộ; an toàn khi gọi từ background thread.
-  - `WriteLine(string)` – ghi một dòng text (tự thêm `\n`).
-  - `Log(string)` – ghi dòng text có timestamp `[HH:mm:ss]` – tiện cho log dạng journal.
-  - `Activate()` – đưa pane về foreground trong Output Window.
-  - `Clear()` – xóa toàn bộ nội dung pane.
-- **Lý do:** Trước đây không có Output Window. Yêu cầu bổ sung demo custom pane theo pattern AsyncPackage.
+- `InitializeAsync()`, `WriteLine()`, `Log()`, `Activate()`, `Clear()`.
 
 #### `src/Services/StatusBarService.cs` *(new file)*
-- **Mục đích:** Wrapper mỏng quanh `IVsStatusbar` giúp callers không cần thao tác COM trực tiếp.
-- **Nội dung:**
-  - `InitializeAsync()` – resolve `SVsStatusbar` service.
-  - `SetText(string)` – unfreeze rồi ghi text vào status bar.
-  - `StartAnimation(string)` / `StopAnimation()` – bật/tắt icon xoay `SBAI_General`.
-  - `ReportProgress(ref ulong, string, uint, uint)` – hiện progress bar.
-  - `ClearProgress(ref ulong)` – ẩn progress bar.
-  - `RunWithAnimationAsync(Func<Task>, string)` – convenience method: chạy async work trên background thread, tự động bật/tắt animation và reset text về "Ready".
-- **Lý do:** Cần demo Status Bar theo tài liệu Microsoft VS SDK.
+- `InitializeAsync()`, `SetText()`, `StartAnimation()`, `StopAnimation()`,
+  `ReportProgress()`, `ClearProgress()`, `RunWithAnimationAsync()`.
 
 ### Changed
 
-#### `src/MyPackage.cs`
-- **Thêm** hai property `OutputWindow` và `StatusBar` (singleton, set trong `InitializeAsync`).
-- **`InitializeAsync`:** khởi tạo cả hai service trước khi switch sang UI thread; sau khi load ghi log vào Output pane và set status bar text.
-- **`InitializeToolWindowAsync`:** truyền `OutputWindow` và `StatusBar` vào `SampleToolWindowState` để tool window control có thể dùng.
-- **Lý do:** Package là single source of truth cho các VS services; tránh service locator rải rác trong codebase.
-
-#### `src/ToolWindows/SampleToolWindowState.cs`
-- **Thêm** hai property `OutputWindowService OutputWindow` và `StatusBarService StatusBar`.
-- **Lý do:** State object là cầu nối giữa `MyPackage.InitializeToolWindowAsync` (background thread) và constructor của `SampleToolWindow`/Control (UI thread). Thêm services vào đây đảm bảo không cần static/singleton toàn cục.
-
-#### `src/ToolWindows/SampleToolWindowControl.xaml`
-- **Thêm** 5 button mới nhóm theo "Output Window" và "Status Bar":
-  - *Write to Output* – ghi log vào custom pane.
-  - *Clear Output Pane* – xóa pane.
-  - *Set Status Text* – cập nhật text status bar.
-  - *Animate (3 s)* – chạy animation 3 giây (demo background work).
-  - *Show Progress Bar* – demo progress bar 5 bước.
-- **Lý do:** Cần UI để người dùng tương tác và kiểm tra hai feature mới.
-
-#### `src/ToolWindows/SampleToolWindowControl.xaml.cs`
-- **Đổi tên** `Button_Click` → `Button_ShowVsLocation_Click` (rõ ràng hơn); xóa handler trùng lặp `Button_Click_1`.
-- **Thêm** handlers:
-  - `Button_WriteOutput_Click` – gọi `OutputWindow.Activate()`, `.Log()`, `.WriteLine()` và cập nhật status bar.
-  - `Button_ClearOutput_Click` – gọi `OutputWindow.Clear()` + `.Log()`.
-  - `Button_SetStatus_Click` – gọi `StatusBar.SetText()`.
-  - `Button_Animate_Click` – fire-and-forget qua `JoinableTaskFactory.RunAsync`, gọi `StatusBar.RunWithAnimationAsync` với delay 3 s.
-  - `Button_Progress_Click` – fire-and-forget, vòng lặp 5 bước gọi `StatusBar.ReportProgress` + delay 600 ms mỗi bước.
-- **Lý do:** Minh họa đầy đủ API Output Window và Status Bar trên UI thread đúng cách (không block, dùng JoinableTaskFactory).
+- `MyPackage.cs` – thêm `OutputWindow`, `StatusBar` properties + wire-up.
+- `SampleToolWindowState.cs` – thêm `OutputWindow`, `StatusBar`.
+- `SampleToolWindowControl.xaml` – thêm 5 button Output/StatusBar.
+- `SampleToolWindowControl.xaml.cs` – thêm handlers tương ứng.
 
 ---
 
-## [1.1] – baseline (trước thay đổi này)
+## [1.1] – baseline
 
-- Async Tool Window cơ bản với một button "Click me" hiển thị đường dẫn VS.
+- Async Tool Window cơ bản với button "Show VS Location".
 - AsyncPackage load trên background thread.
 - Command `ShowToolWindow` trong menu *View > Other Windows*.

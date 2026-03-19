@@ -1,0 +1,13 @@
+- Sử dụng AsyncPackage (VS2017+):
+  - Background thread,
+  - Không block UI,
+  - await GetServiceAsync(...),
+  - AllowsBackgroundLoading = true
+- Phát triển Project theo code để có thể chạy được trên môi trường hiện tại.
+- Github tham khảo: https://github.com/o22zalo/VSSDK-Extensibility-Samples
+- Theo tài liệu của microsoft, áp dụng đối với visual studio 2017
+- Khi code thay đổi, phải có file changelog ghi nhận lại các thay đổi (nguyên nhân xử lý, lỗi, mục đích thay đổi, tác dụng...), có file commit.mesage để có thể thực hiện commit vào repo theo dạng (feat), (bug), (fix)... có ngày tháng, file commit message có tên là '.opushforce.message'
+- Khi thêm các hàm thì phải có using rõ ràng, ví dụ: sử dụng Task: thì phải using Task = System.Threading.Tasks.Task;
+- Khi có thay đổi các file, tạo zip với đầy đủ đường dẫn, tên file theo source hiện tại để copy hoặc move file từ source tải về là đè chồng được luôn.
+- Khi có cập nhật thì phải thay đổi Readme để đảm bảo Readme.md luôn đúng với code hiện tại.
+- Khi có thêm tính năng mới hoặc thay đổi, thì phải có file hướng dẫn tính năng kèm theo: tên đặt theo tính năng mới, ngày giờ, đặt trong thư mục: `docs/tutorials`

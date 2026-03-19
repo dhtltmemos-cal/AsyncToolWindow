@@ -1,37 +1,130 @@
-# Async Tool Window example
+# Async Tool Window Sample
 
-**Applies to Visual Studio 2017.6 and newer**
+**Applies to Visual Studio 2017 Update 6 (v15.6) and newer**
 
-This sample shows how to provide an Async Tool Window in a Visual Studio extension.
+This sample shows how to build a VS 2017 extension using the `AsyncPackage` pattern.
+It covers Output Window, Status Bar, and **Selection / Caret APIs** (both DTE and MEF tiers).
 
-Clone the repo to test out the sample in Visual Studio 2017 yourself.
+Clone the repo and open in Visual Studio 2017 to run:
+
+```
+git clone https://github.com/madskristensen/AsyncToolWindowSample
+```
+
+Press **F5** — VS launches an Experimental Instance with the extension loaded.
+Open the tool window via **View › Other Windows › Sample Tool Window**.
 
 ![Tool Window](art/tool-window.png)
 
-## Specify minimum supported version
-Since Async Tool Window support is new in Visual Studio 2017 Update 6, we need to specify that our extension requires that version or newer. We do that in the .vsixmanifest file like so:
+---
+
+## Minimum supported version
 
 ```xml
 <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[15.0.27413, 16.0)" />
 ```
 
-*15.0.27413* is the full version string of Visual Studio 2017 Update 6.
+*15.0.27413* is the build number of Visual Studio 2017 Update 6.
 
-See the full sample [.vsixmanifest file](src/source.extension.vsixmanifest).
+---
 
-## This sample
-The code in this sample contains the concepts:
+## Features demonstrated
 
-1. [Custom Tool Window Pane](src/ToolWindows/SampleToolWindow.cs)
-2. [XAML control](src/ToolWindows/SampleToolWindowControl.xaml) for the pane
-3. [Custom command](src/Commands/ShowToolWindow.cs) that can show the tool window
-4. [AsyncPackage class](src/MyPackage.cs) that glues it all together
+### 1. AsyncPackage infrastructure
+- Background loading (`AllowsBackgroundLoading = true`)
+- `GetServiceAsync` (non-blocking)
+- `JoinableTaskFactory.SwitchToMainThreadAsync` for UI-thread operations
+- `ProvideToolWindow` + async factory (`IVsAsyncToolWindowFactory`)
 
-Follow the links above directly into the source code to see how it is all hooked up.
+### 2. Output Window (`OutputWindowService`)
+| Button | What it shows |
+|--------|---------------|
+| Write to Output | `WriteLine` / timestamped `Log` to a custom pane |
+| Clear Output Pane | `Clear()` the pane |
+
+### 3. Status Bar (`StatusBarService`)
+| Button | What it shows |
+|--------|---------------|
+| Set Status Text | `SetText()` with current time |
+| Animate (3 s) | `StartAnimation` / `StopAnimation` with background work |
+| Show Progress Bar | 5-step `ReportProgress` / `ClearProgress` loop |
+
+### 4. Selection APIs — Tier 1: DTE (`SelectionService`)
+Simple COM-based `TextSelection` API. Positions are **1-based**.
+
+| Button | What it shows |
+|--------|---------------|
+| Show Caret Info (DTE) | `CurrentLine`, `CurrentColumn`, Anchor/Active points, `Mode` |
+| Select Current Line (DTE) | `SelectLine()` |
+| Find 'TODO' (DTE) | `FindText("TODO")` → found/not found |
+| Collapse Selection (DTE) | `Collapse()` |
+
+### 5. Selection APIs — Tier 2: MEF / IWpfTextView (`SelectionService`)
+Managed MEF API. Positions are **0-based**. Supports multi-caret and `ITextEdit` transactions.
+
+| Button | What it shows |
+|--------|---------------|
+| Show Caret Info (MEF) | Offset, Line, Col, TotalChars, TotalLines, ContentType |
+| Show Selected Spans (MEF) | All `SnapshotSpan` items: Start/End/Length/Text/Lines |
+| Insert Text at Caret (MEF) | `ITextEdit.Insert` — inserts a comment placeholder |
+| Replace Selection (MEF) | `ITextEdit.Replace` — wraps selection in a comment |
+| Buffer Char Count (MEF) | `snapshot.GetText().Length` + line count |
+
+---
+
+## Source map
+
+```
+src/
+├── MyPackage.cs                          ← AsyncPackage entry point
+├── VSCommandTable.vsct                   ← Menu command definition
+├── Commands/
+│   └── ShowToolWindow.cs                 ← Opens the tool window
+├── Services/
+│   ├── OutputWindowService.cs            ← Custom Output pane wrapper
+│   ├── StatusBarService.cs               ← IVsStatusbar wrapper
+│   └── SelectionService.cs               ← DTE + MEF selection wrapper  ← NEW
+├── ToolWindows/
+│   ├── SampleToolWindow.cs               ← ToolWindowPane subclass
+│   ├── SampleToolWindowControl.xaml      ← WPF UI
+│   ├── SampleToolWindowControl.xaml.cs   ← Button handlers
+│   └── SampleToolWindowState.cs          ← State bag passed via async factory
+└── Properties/
+    └── AssemblyInfo.cs
+```
+
+---
+
+## Key concepts
+
+### Thread safety cheat-sheet
+
+```csharp
+// Switch to UI thread before any VS COM call
+await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+// Assert UI thread (throws if violated)
+ThreadHelper.ThrowIfNotOnUIThread();
+
+// Fire-and-forget async work without blocking UI
+package.JoinableTaskFactory.RunAsync(async () => { ... });
+```
+
+### DTE vs MEF selection — when to use which
+
+| Concern | DTE (Tier 1) | MEF / IWpfTextView (Tier 2) |
+|---------|-------------|---------------------------|
+| Offset style | 1-based | 0-based |
+| Multi-caret | ✗ | ✓ |
+| Box selection detection | via `sel.Mode` | via `selection.Mode` |
+| Edit buffer | `EditPoint.Insert/Replace` | `ITextEdit` transaction |
+| Requires MEF setup | ✗ | ✓ (`IVsEditorAdaptersFactoryService`) |
+
+---
 
 ## Further reading
-Read the docs for all the details surrounding these scenarios.
 
-* [VSCT Schema Reference](https://docs.microsoft.com/en-us/visualstudio/extensibility/vsct-xml-schema-reference)
-* [Use AsyncPackage with background load](https://docs.microsoft.com/en-us/visualstudio/extensibility/how-to-use-asyncpackage-to-load-vspackages-in-the-background)
-* [Custom command sample](https://github.com/madskristensen/CustomCommandSample)
+- [VSCT Schema Reference](https://docs.microsoft.com/en-us/visualstudio/extensibility/vsct-xml-schema-reference)
+- [Use AsyncPackage with background load](https://docs.microsoft.com/en-us/visualstudio/extensibility/how-to-use-asyncpackage-to-load-vspackages-in-the-background)
+- [IVsTextView and IWpfTextView](https://docs.microsoft.com/en-us/visualstudio/extensibility/editor-and-language-service-extensions)
+- [Custom command sample](https://github.com/madskristensen/CustomCommandSample)

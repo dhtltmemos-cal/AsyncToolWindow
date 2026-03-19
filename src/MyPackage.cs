@@ -30,6 +30,9 @@ namespace AsyncToolWindowSample
         /// <summary>Status bar service – available after package load.</summary>
         public StatusBarService StatusBar { get; private set; }
 
+        /// <summary>Selection / caret service – available after package load.</summary>
+        public SelectionService Selection { get; private set; }
+
         // --------------------------------------------------------------------- //
         //  AsyncPackage lifecycle                                                //
         // --------------------------------------------------------------------- //
@@ -38,13 +41,15 @@ namespace AsyncToolWindowSample
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
         {
-            // ── 1. Initialize services on background thread where possible ──
+            // ── 1. Construct services (still on background thread) ──
             OutputWindow = new OutputWindowService(this);
             StatusBar    = new StatusBarService(this);
+            Selection    = new SelectionService(this);
 
-            // Both services switch to UI thread internally for COM calls
+            // All three switch to UI thread internally for their COM calls
             await OutputWindow.InitializeAsync();
             await StatusBar.InitializeAsync();
+            await Selection.InitializeAsync();
 
             // ── 2. Switch to UI thread for VS shell operations ──
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
@@ -84,7 +89,8 @@ namespace AsyncToolWindowSample
             {
                 DTE          = dte,
                 OutputWindow = OutputWindow,
-                StatusBar    = StatusBar
+                StatusBar    = StatusBar,
+                Selection    = Selection
             };
         }
     }

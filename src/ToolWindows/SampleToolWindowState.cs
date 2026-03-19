@@ -5,7 +5,7 @@ namespace AsyncToolWindowSample.ToolWindows
     /// <summary>
     /// State object passed from <see cref="MyPackage.InitializeToolWindowAsync"/>
     /// into <see cref="SampleToolWindow"/> constructor.
-    /// Carries DTE and the two new services.
+    /// Carries DTE and all registered services.
     /// </summary>
     public class SampleToolWindowState
     {
@@ -16,5 +16,8 @@ namespace AsyncToolWindowSample.ToolWindows
 
         /// <summary>Status bar wrapper.</summary>
         public StatusBarService StatusBar { get; set; }
+
+        /// <summary>Selection / caret API wrapper (DTE + MEF tiers).</summary>
+        public SelectionService Selection { get; set; }
     }
 }

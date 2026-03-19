@@ -5,60 +5,128 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:AsyncToolWindowSample.ToolWindows"
              mc:Ignorable="d"
-             d:DesignHeight="450"
+             d:DesignHeight="720"
              d:DesignWidth="800">
-    <Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Width="200">
+                    VerticalAlignment="Top"
+                    Width="220"
+                    Margin="0,12,0,12">
 
             <!-- Original button -->
             <Button Content="Show VS Location"
                     Click="Button_ShowVsLocation_Click"
-                    Width="180"
+                    Width="200"
                     Height="32"
                     Margin="0,0,0,8" />
 
-            <!-- Output Window section -->
+            <!-- ═══ Output Window section ═══ -->
             <TextBlock Text="── Output Window ──"
                        HorizontalAlignment="Center"
-                       Margin="0,4,0,4"
+                       Margin="0,8,0,4"
                        Foreground="Gray" FontSize="11"/>
 
             <Button Content="Write to Output"
                     Click="Button_WriteOutput_Click"
-                    Width="180"
+                    Width="200"
                     Height="32"
-                    Margin="0,0,0,8" />
+                    Margin="0,0,0,6" />
 
             <Button Content="Clear Output Pane"
                     Click="Button_ClearOutput_Click"
-                    Width="180"
+                    Width="200"
                     Height="32"
-                    Margin="0,0,0,8" />
+                    Margin="0,0,0,6" />
 
-            <!-- Status Bar section -->
+            <!-- ═══ Status Bar section ═══ -->
             <TextBlock Text="── Status Bar ──"
                        HorizontalAlignment="Center"
-                       Margin="0,4,0,4"
+                       Margin="0,8,0,4"
                        Foreground="Gray" FontSize="11"/>
 
             <Button Content="Set Status Text"
                     Click="Button_SetStatus_Click"
-                    Width="180"
+                    Width="200"
                     Height="32"
-                    Margin="0,0,0,8" />
+                    Margin="0,0,0,6" />
 
             <Button Content="Animate (3 s)"
                     Click="Button_Animate_Click"
-                    Width="180"
+                    Width="200"
                     Height="32"
-                    Margin="0,0,0,8" />
+                    Margin="0,0,0,6" />
 
             <Button Content="Show Progress Bar"
                     Click="Button_Progress_Click"
-                    Width="180"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <!-- ═══ Selection API — Tier 1 (DTE) section ═══ -->
+            <TextBlock Text="── Selection (DTE / Tier 1) ──"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,4"
+                       Foreground="Gray" FontSize="11"/>
+
+            <Button Content="Show Caret Info (DTE)"
+                    Click="Button_DteCaretInfo_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <Button Content="Select Current Line (DTE)"
+                    Click="Button_DteSelectLine_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <Button Content="Find 'TODO' (DTE)"
+                    Click="Button_DteFindTodo_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <Button Content="Collapse Selection (DTE)"
+                    Click="Button_DteCollapse_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <!-- ═══ Selection API — Tier 2 (MEF / IWpfTextView) section ═══ -->
+            <TextBlock Text="── Selection (MEF / Tier 2) ──"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,4"
+                       Foreground="Gray" FontSize="11"/>
+
+            <Button Content="Show Caret Info (MEF)"
+                    Click="Button_MefCaretInfo_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <Button Content="Show Selected Spans (MEF)"
+                    Click="Button_MefSelectedSpans_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <Button Content="Insert Text at Caret (MEF)"
+                    Click="Button_MefInsert_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <Button Content="Replace Selection (MEF)"
+                    Click="Button_MefReplace_Click"
+                    Width="200"
+                    Height="32"
+                    Margin="0,0,0,6" />
+
+            <Button Content="Buffer Char Count (MEF)"
+                    Click="Button_MefBufferCount_Click"
+                    Width="200"
                     Height="32" />
+
         </StackPanel>
-    </Grid>
+    </ScrollViewer>
 </UserControl>
