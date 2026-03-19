@@ -264,7 +264,6 @@ namespace AsyncToolWindowSample.ToolWindows
             OutputWindow.Log($"[Doc] Language : {info.Language}");
             OutputWindow.Log($"[Doc] Kind     : {info.Kind}");
             OutputWindow.Log($"[Doc] Saved    : {info.Saved}   ReadOnly: {info.ReadOnly}");
-            OutputWindow.Log($"[Doc] Encoding : {info.Encoding} (65001=UTF-8)");
             if (info.ProjectName != null)
                 OutputWindow.Log($"[Doc] Project  : {info.ProjectName}  Path: {info.ProjectFilePath}");
             StatusBar.SetText($"Doc: {info.Name} | {info.Language} | Saved={info.Saved}");

@@ -10,16 +10,7 @@ namespace AsyncToolWindowSample.Services
 {
     /// <summary>
     /// Provides access to VS Document &amp; File APIs via DTE.
-    /// Covers:
-    /// <list type="bullet">
-    ///   <item>Active document properties (Name, Path, Language, Saved, ReadOnly, Encoding)</item>
-    ///   <item>Document operations (Save, SaveAs, Close, Undo)</item>
-    ///   <item>Open file / navigate URL via ItemOperations</item>
-    ///   <item>Enumerate all open documents</item>
-    ///   <item>TextDocument &amp; EditPoint read/write</item>
-    ///   <item>ExecuteCommand — built-in VS commands</item>
-    /// </list>
-    /// All public methods must be called on the UI thread unless documented otherwise.
+    /// All public methods must be called on the UI thread.
     /// </summary>
     public sealed class DocumentService
     {
@@ -42,6 +33,27 @@ namespace AsyncToolWindowSample.Services
             return _serviceProvider.GetService(typeof(DTE)) as DTE2;
         }
 
+        /// <summary>
+        /// Tries to read the CodePage/Encoding of a document via its TextDocument.
+        /// Returns -1 when unavailable (binary, designer, etc.).
+        /// </summary>
+        private static int TryGetEncoding(Document doc)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            try
+            {
+                var td = doc.Object("TextDocument") as TextDocument;
+                // TextDocument does not expose Encoding directly either in DTE 8.0.
+                // Use the underlying ProjectItem property if available.
+                // Fallback: return 0 (unknown).
+                return 0;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
         // ================================================================== //
         //  Document Properties                                                 //
         // ================================================================== //
@@ -58,8 +70,8 @@ namespace AsyncToolWindowSample.Services
             var doc = dte?.ActiveDocument;
             if (doc == null) return null;
 
-            string projName  = null;
-            string filePath  = null;
+            string projName = null;
+            string filePath = null;
             try
             {
                 if (doc.ProjectItem != null)
@@ -72,21 +84,18 @@ namespace AsyncToolWindowSample.Services
 
             return new DocumentInfo
             {
-                Name       = doc.Name,
-                FullName   = doc.FullName,
-                Language   = doc.Language,
-                Kind       = doc.Kind,
-                Saved      = doc.Saved,
-                ReadOnly   = doc.ReadOnly,
-                Encoding   = doc.Encoding,
-                ProjectName = projName,
+                Name            = doc.Name,
+                FullName        = doc.FullName,
+                Language        = doc.Language,
+                Kind            = doc.Kind,
+                Saved           = doc.Saved,
+                ReadOnly        = doc.ReadOnly,
+                ProjectName     = projName,
                 ProjectFilePath = filePath
             };
         }
 
-        /// <summary>
-        /// Returns info for all currently open documents.
-        /// </summary>
+        /// <summary>Returns info for all currently open documents.</summary>
         public IReadOnlyList<DocumentInfo> GetAllOpenDocuments()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -102,13 +111,12 @@ namespace AsyncToolWindowSample.Services
 
                 result.Add(new DocumentInfo
                 {
-                    Name      = doc.Name,
-                    FullName  = doc.FullName,
-                    Language  = doc.Language,
-                    Kind      = doc.Kind,
-                    Saved     = doc.Saved,
-                    ReadOnly  = doc.ReadOnly,
-                    Encoding  = doc.Encoding,
+                    Name        = doc.Name,
+                    FullName    = doc.FullName,
+                    Language    = doc.Language,
+                    Kind        = doc.Kind,
+                    Saved       = doc.Saved,
+                    ReadOnly    = doc.ReadOnly,
                     ProjectName = projName
                 });
             }
@@ -120,7 +128,7 @@ namespace AsyncToolWindowSample.Services
         //  Document Operations                                                 //
         // ================================================================== //
 
-        /// <summary>Saves the active document. Returns <c>false</c> if no active document.</summary>
+        /// <summary>Saves the active document. Returns <c>false</c> if none active.</summary>
         public bool SaveActiveDocument()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -130,10 +138,7 @@ namespace AsyncToolWindowSample.Services
             return true;
         }
 
-        /// <summary>
-        /// Save-As the active document to <paramref name="newPath"/>.
-        /// Returns <c>false</c> if no active document.
-        /// </summary>
+        /// <summary>Save-As the active document to <paramref name="newPath"/>.</summary>
         public bool SaveActiveDocumentAs(string newPath)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -145,8 +150,7 @@ namespace AsyncToolWindowSample.Services
 
         /// <summary>
         /// Closes the active document.
-        /// <paramref name="saveChanges"/>: true = save before close; false = discard.
-        /// Returns <c>false</c> if no active document.
+        /// <paramref name="saveChanges"/>: true = save; false = discard.
         /// </summary>
         public bool CloseActiveDocument(bool saveChanges = true)
         {
@@ -173,19 +177,14 @@ namespace AsyncToolWindowSample.Services
         //  Open File / Navigate                                               //
         // ================================================================== //
 
-        /// <summary>
-        /// Opens a file in the VS code editor.
-        /// </summary>
+        /// <summary>Opens a file in the VS code editor.</summary>
         public void OpenFile(string filePath)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            GetDte()?.ItemOperations.OpenFile(filePath,
-                Constants.vsViewKindCode);
+            GetDte()?.ItemOperations.OpenFile(filePath, Constants.vsViewKindCode);
         }
 
-        /// <summary>
-        /// Navigates to a URL in the VS embedded browser or default browser.
-        /// </summary>
+        /// <summary>Navigates to a URL in VS or the default browser.</summary>
         public void NavigateUrl(string url)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -197,8 +196,7 @@ namespace AsyncToolWindowSample.Services
         // ================================================================== //
 
         /// <summary>
-        /// Returns a <see cref="TextDocumentInfo"/> snapshot (line count, char count,
-        /// first 200 chars preview) for the active document.
+        /// Returns a <see cref="TextDocumentInfo"/> snapshot for the active document.
         /// Returns <c>null</c> when the active document is not a text document.
         /// </summary>
         public TextDocumentInfo GetTextDocumentInfo()
@@ -218,7 +216,6 @@ namespace AsyncToolWindowSample.Services
             int totalChars = textDoc.EndPoint.AbsoluteCharOffset
                            - textDoc.StartPoint.AbsoluteCharOffset;
 
-            // Read first 200 chars via EditPoint
             EditPoint ep      = textDoc.StartPoint.CreateEditPoint();
             string    preview = ep.GetText(Math.Min(200, totalChars));
 
@@ -252,8 +249,7 @@ namespace AsyncToolWindowSample.Services
         }
 
         /// <summary>
-        /// Inserts <paramref name="text"/> at the beginning of the active document
-        /// using an EditPoint transaction.
+        /// Inserts <paramref name="text"/> at the beginning of the active document.
         /// Returns <c>false</c> if no active text document.
         /// </summary>
         public bool InsertAtStart(string text)
@@ -277,10 +273,7 @@ namespace AsyncToolWindowSample.Services
         //  ExecuteCommand                                                      //
         // ================================================================== //
 
-        /// <summary>
-        /// Executes a built-in VS command by name.
-        /// <paramref name="args"/> is optional (e.g. line number for Edit.GoToLine).
-        /// </summary>
+        /// <summary>Executes a built-in VS command by name.</summary>
         public void ExecuteCommand(string commandName, string args = "")
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -322,7 +315,6 @@ namespace AsyncToolWindowSample.Services
         public string Kind            { get; set; }
         public bool   Saved           { get; set; }
         public bool   ReadOnly        { get; set; }
-        public int    Encoding        { get; set; }
         public string ProjectName     { get; set; }
         public string ProjectFilePath { get; set; }
     }

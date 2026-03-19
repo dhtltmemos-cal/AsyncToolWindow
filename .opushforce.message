@@ -1,31 +1,22 @@
-(feat) 2026-03-19 – Document & File APIs (Section 4)
+(fix) 2026-03-19 – CS1061 Document.Encoding không tồn tại trong EnvDTE 8.0
 
-feat(DocumentService): add DocumentService with full Document & File API coverage
+fix(DocumentService): remove doc.Encoding – property does not exist on EnvDTE.Document
 
-- New: src/Services/DocumentService.cs
-  - GetActiveDocumentInfo() → DocumentInfo DTO
-  - GetAllOpenDocuments() → IReadOnlyList<DocumentInfo>
-  - SaveActiveDocument(), SaveActiveDocumentAs(path)
-  - CloseActiveDocument(saveChanges), UndoActiveDocument()
-  - OpenFile(path), NavigateUrl(url)
-  - GetTextDocumentInfo() → TextDocumentInfo (via TextDocument + EditPoint)
-  - ReadLines(startLine, endLine) via EditPoint.GetLines
-  - InsertAtStart(text) via EditPoint.Insert
-  - ExecuteCommand(name, args), FormatDocument(), SaveAll(), GoToLine(line)
+Nguyên nhân:
+  EnvDTE.Document (DTE 8.0 COM interface) không khai báo property Encoding.
+  Compiler báo CS1061 tại DocumentService.cs:81 và :111.
 
-feat(ToolWindow): add 8 Document & File API demo buttons to SampleToolWindowControl
+Cách xử lý:
+  - Xóa truy cập doc.Encoding khỏi GetActiveDocumentInfo() và GetAllOpenDocuments().
+  - Xóa field Encoding khỏi DocumentInfo DTO.
+  - Xóa dòng log Encoding trong SampleToolWindowControl.xaml.cs Button_DocInfo_Click.
 
-- Show Active Doc Info
-- List All Open Docs
-- TextDoc Info + Preview
-- Read Lines 1–5
-- Save Active Document
-- Format Document
-- Save All
-- Go To Line 1
+Tác dụng:
+  - Build thành công, không còn CS1061.
+  - Nếu cần encoding thực sự, có thể dùng System.IO.StreamReader(doc.FullName)
+    hoặc System.IO.File.ReadAllBytes để detect BOM ngoài DTE.
 
-chore(csproj): add DocumentService.cs to compile items
-chore(state): add DocumentService property to SampleToolWindowState
-chore(package): wire DocumentService singleton in MyPackage.InitializeAsync + InitializeToolWindowAsync
-docs: add tutorial docs/tutorials/document-file-apis_2026-03-19.md
-docs: update CHANGELOG.md, README.md
+Files thay đổi:
+  - src/Services/DocumentService.cs
+  - src/ToolWindows/SampleToolWindowControl.xaml.cs
+  - CHANGELOG.md
