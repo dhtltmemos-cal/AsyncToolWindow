@@ -16,9 +16,9 @@ namespace AsyncToolWindowSample
     [ProvideToolWindow(typeof(SampleToolWindow),
         Style = VsDockStyle.Tabbed, DockedWidth = 300,
         Window = "DocumentWell", Orientation = ToolWindowOrientation.Left)]
-    [Guid("6e3b2e95-902b-4385-a966-30c06ab3c7a6")]
+    [Guid(PackageGuids.PackageGuidString)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
-    // Section 10: register the Options page under Tools › Options
+    // §10: register the Options page under Tools › Options
     [ProvideOptionPage(typeof(SampleOptionsPage),
         "Async Tool Window Sample", "General",
         categoryResourceID: 0, pageNameResourceID: 0,
@@ -32,11 +32,14 @@ namespace AsyncToolWindowSample
         public ProjectService      Project      { get; private set; }
         public EventService        Events       { get; private set; }
         public OptionsService      Options      { get; private set; }
+        public MenuService         Menu         { get; private set; }
+        public ToolbarService      Toolbar      { get; private set; }
 
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
         {
+            // ── Construct all services (background thread) ────────────────
             OutputWindow = new OutputWindowService(this);
             StatusBar    = new StatusBarService(this);
             Selection    = new SelectionService(this);
@@ -44,16 +47,28 @@ namespace AsyncToolWindowSample
             Project      = new ProjectService(this);
             Options      = new OptionsService(this);
 
+            // EventService needs OutputWindow already constructed
+            Events  = new EventService(this, OutputWindow);
+
+            // ToolbarService needs OutputWindow
+            Toolbar = new ToolbarService(this, OutputWindow);
+
+            // MenuService registers OleMenuCommands — must be called later on UI thread
+            Menu = new MenuService(this);
+
+            // ── Async init (may still be on background thread) ────────────
             await OutputWindow.InitializeAsync();
             await StatusBar.InitializeAsync();
             await Selection.InitializeAsync();
 
-            // EventService requires OutputWindow to be initialised first
-            Events = new EventService(this, OutputWindow);
-
+            // ── Switch to UI thread for everything that needs COM ─────────
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
+            // Show Tool Window command (existing)
             await ShowToolWindow.InitializeAsync(this);
+
+            // §6: register the three dynamic OleMenuCommands
+            await Menu.InitializeAsync();
 
             OutputWindow.Log("AsyncToolWindowSample loaded successfully.");
             StatusBar.SetText("Async Tool Window Sample loaded.");
@@ -87,7 +102,9 @@ namespace AsyncToolWindowSample
                 Document     = Document,
                 Project      = Project,
                 Events       = Events,
-                Options      = Options
+                Options      = Options,
+                Menu         = Menu,
+                Toolbar      = Toolbar
             };
         }
 

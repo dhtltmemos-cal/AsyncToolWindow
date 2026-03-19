@@ -19,6 +19,8 @@ namespace AsyncToolWindowSample.ToolWindows
         private ProjectService      Project      => _state.Project;
         private EventService        Events       => _state.Events;
         private OptionsService      Options      => _state.Options;
+        private MenuService         Menu         => _state.Menu;
+        private ToolbarService      Toolbar      => _state.Toolbar;
 
         public SampleToolWindowControl(SampleToolWindowState state)
         {
@@ -27,7 +29,7 @@ namespace AsyncToolWindowSample.ToolWindows
         }
 
         // ------------------------------------------------------------------ //
-        //  Original button                                                     //
+        //  Original                                                            //
         // ------------------------------------------------------------------ //
 
         private void Button_ShowVsLocation_Click(object sender, RoutedEventArgs e)
@@ -77,8 +79,7 @@ namespace AsyncToolWindowSample.ToolWindows
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 OutputWindow.Log("Starting 3-second animation…");
                 await StatusBar.RunWithAnimationAsync(
-                    async () => await Task.Delay(3000),
-                    "Processing… please wait");
+                    async () => await Task.Delay(3000), "Processing… please wait");
                 OutputWindow.Log("Animation finished.");
             });
         }
@@ -118,8 +119,7 @@ namespace AsyncToolWindowSample.ToolWindows
             OutputWindow.Log($"  Active  : Line={info.ActiveLine}, AbsOffset={info.ActiveAbsOffset}");
             OutputWindow.Log($"  TopLine={info.TopLine}, BottomLine={info.BottomLine}");
             OutputWindow.Log($"  Mode={info.Mode}, IsEmpty={info.IsEmpty}");
-            if (!info.IsEmpty)
-                OutputWindow.Log($"  Selected: \"{Truncate(info.SelectedText, 80)}\"");
+            if (!info.IsEmpty) OutputWindow.Log($"  Selected: \"{Truncate(info.SelectedText, 80)}\"");
             StatusBar.SetText($"DTE Caret – Line {info.Line}, Col {info.Column}");
         }
 
@@ -128,52 +128,37 @@ namespace AsyncToolWindowSample.ToolWindows
             ThreadHelper.ThrowIfNotOnUIThread();
             Selection.SelectCurrentLine();
             var info = Selection.GetDteCaretInfo();
-            string msg = info != null
-                ? $"[DTE] Selected line {info.AnchorLine}."
-                : "[DTE] SelectLine called (no caret info).";
-            OutputWindow.Log(msg);
-            StatusBar.SetText(msg);
+            string msg = info != null ? $"[DTE] Selected line {info.AnchorLine}." : "[DTE] SelectLine called.";
+            OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
         private void Button_DteFindTodo_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             bool found = Selection.FindText("TODO", matchCase: false);
-            string msg = found
-                ? "[DTE] Found 'TODO' in active document."
-                : "[DTE] 'TODO' not found in active document.";
-            OutputWindow.Log(msg);
-            StatusBar.SetText(msg);
+            string msg = found ? "[DTE] Found 'TODO'." : "[DTE] 'TODO' not found.";
+            OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
         private void Button_DteCollapse_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             Selection.CollapseSelection();
-            OutputWindow.Log("[DTE] Selection collapsed.");
-            StatusBar.SetText("DTE selection collapsed.");
+            OutputWindow.Log("[DTE] Selection collapsed."); StatusBar.SetText("DTE selection collapsed.");
         }
 
         // ================================================================== //
-        //  SELECTION TIER 2 — MEF / IWpfTextView                             //
+        //  SELECTION TIER 2 — MEF                                             //
         // ================================================================== //
 
         private void Button_MefCaretInfo_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var info = Selection.GetMefCaretInfo();
-            if (info == null)
-            {
-                OutputWindow.Log("[MEF] No focused editor pane.");
-                StatusBar.SetText("No focused editor pane.");
-                return;
-            }
+            if (info == null) { OutputWindow.Log("[MEF] No focused editor pane."); StatusBar.SetText("No focused editor pane."); return; }
             OutputWindow.Activate();
-            OutputWindow.Log($"[MEF Caret] Offset={info.Offset0Based} (0-based)");
-            OutputWindow.Log($"  Line={info.LineNumber0Based} (0-based) → DTE Line={info.LineNumber0Based + 1}");
-            OutputWindow.Log($"  Col={info.Column0Based} (0-based)");
-            OutputWindow.Log($"  Buffer: {info.TotalChars} chars, {info.TotalLines} lines");
-            OutputWindow.Log($"  ContentType: {info.ContentType}");
+            OutputWindow.Log($"[MEF Caret] Offset={info.Offset0Based}  Line={info.LineNumber0Based}  Col={info.Column0Based}");
+            OutputWindow.Log($"  Buffer: {info.TotalChars} chars, {info.TotalLines} lines  ContentType={info.ContentType}");
             StatusBar.SetText($"MEF Caret – Line {info.LineNumber0Based + 1}, Col {info.Column0Based}");
         }
 
@@ -181,63 +166,44 @@ namespace AsyncToolWindowSample.ToolWindows
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var spans = Selection.GetMefSelectedSpans();
-            if (spans.Count == 0)
-            {
-                OutputWindow.Log("[MEF] No selection (or no focused editor).");
-                StatusBar.SetText("No selection.");
-                return;
-            }
+            if (spans.Count == 0) { OutputWindow.Log("[MEF] No selection."); StatusBar.SetText("No selection."); return; }
             OutputWindow.Activate();
-            OutputWindow.Log($"[MEF] {spans.Count} selected span(s):");
+            OutputWindow.Log($"[MEF] {spans.Count} span(s):");
             for (int i = 0; i < spans.Count; i++)
             {
                 var s = spans[i];
-                OutputWindow.Log($"  [{i}] Start={s.Start}, End={s.End}, Len={s.Length}");
-                OutputWindow.Log($"       Lines {s.StartLine}–{s.EndLine} (0-based)");
-                OutputWindow.Log($"       Text: \"{Truncate(s.Text, 60)}\"");
+                OutputWindow.Log($"  [{i}] {s.Start}–{s.End} Len={s.Length} Lines {s.StartLine}–{s.EndLine}");
+                OutputWindow.Log($"       \"{Truncate(s.Text, 60)}\"");
             }
-            StatusBar.SetText($"MEF: {spans.Count} span(s) selected.");
+            StatusBar.SetText($"MEF: {spans.Count} span(s).");
         }
 
         private void Button_MefInsert_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            const string inserted = "/* inserted by AsyncToolWindowSample */ ";
-            Selection.InsertAtCaret(inserted);
-            OutputWindow.Log($"[MEF] Inserted text at caret: \"{inserted}\"");
-            StatusBar.SetText("MEF: text inserted at caret.");
+            const string ins = "/* inserted by AsyncToolWindowSample */ ";
+            Selection.InsertAtCaret(ins);
+            OutputWindow.Log($"[MEF] Inserted: \"{ins}\""); StatusBar.SetText("MEF: inserted.");
         }
 
         private void Button_MefReplace_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var spans = Selection.GetMefSelectedSpans();
-            if (spans.Count == 0 || spans[0].Length == 0)
-            {
-                OutputWindow.Log("[MEF] ReplaceSelection: nothing selected.");
-                StatusBar.SetText("MEF: select some text first.");
-                return;
-            }
-            string original    = spans[0].Text;
-            string replacement = $"/* replaced: {original} */";
-            Selection.ReplaceSelection(replacement);
-            OutputWindow.Log($"[MEF] Replaced \"{Truncate(original, 40)}\" → \"{Truncate(replacement, 60)}\"");
-            StatusBar.SetText("MEF: selection replaced.");
+            if (spans.Count == 0 || spans[0].Length == 0) { OutputWindow.Log("[MEF] Select text first."); return; }
+            string orig = spans[0].Text;
+            string rep  = $"/* replaced: {orig} */";
+            Selection.ReplaceSelection(rep);
+            OutputWindow.Log($"[MEF] Replaced \"{Truncate(orig, 40)}\""); StatusBar.SetText("MEF: replaced.");
         }
 
         private void Button_MefBufferCount_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             string text = Selection.GetBufferText();
-            if (text == null)
-            {
-                OutputWindow.Log("[MEF] No focused editor pane.");
-                StatusBar.SetText("No focused editor pane.");
-                return;
-            }
-            string msg = $"[MEF] Buffer: {text.Length} chars, {text.Split('\n').Length} lines.";
-            OutputWindow.Log(msg);
-            StatusBar.SetText(msg);
+            if (text == null) { OutputWindow.Log("[MEF] No focused editor."); return; }
+            string msg = $"[MEF] {text.Length} chars, {text.Split('\n').Length} lines.";
+            OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
         // ================================================================== //
@@ -250,14 +216,10 @@ namespace AsyncToolWindowSample.ToolWindows
             var info = Document.GetActiveDocumentInfo();
             if (info == null) { LogNoDoc("[Doc]"); return; }
             OutputWindow.Activate();
-            OutputWindow.Log($"[Doc] Name     : {info.Name}");
-            OutputWindow.Log($"[Doc] FullName : {info.FullName}");
-            OutputWindow.Log($"[Doc] Language : {info.Language}");
-            OutputWindow.Log($"[Doc] Kind     : {info.Kind}");
-            OutputWindow.Log($"[Doc] Saved    : {info.Saved}   ReadOnly: {info.ReadOnly}");
-            if (info.ProjectName != null)
-                OutputWindow.Log($"[Doc] Project  : {info.ProjectName}  Path: {info.ProjectFilePath}");
-            StatusBar.SetText($"Doc: {info.Name} | {info.Language} | Saved={info.Saved}");
+            OutputWindow.Log($"[Doc] Name={info.Name}  Language={info.Language}  Saved={info.Saved}  RO={info.ReadOnly}");
+            OutputWindow.Log($"[Doc] FullName={info.FullName}");
+            if (info.ProjectName != null) OutputWindow.Log($"[Doc] Project={info.ProjectName}");
+            StatusBar.SetText($"Doc: {info.Name} | {info.Language}");
         }
 
         private void Button_DocListAll_Click(object sender, RoutedEventArgs e)
@@ -265,22 +227,20 @@ namespace AsyncToolWindowSample.ToolWindows
             ThreadHelper.ThrowIfNotOnUIThread();
             var docs = Document.GetAllOpenDocuments();
             OutputWindow.Activate();
-            OutputWindow.Log($"[Doc] Open documents ({docs.Count}):");
+            OutputWindow.Log($"[Doc] {docs.Count} open document(s):");
             foreach (var d in docs)
                 OutputWindow.Log($"  [{(d.Saved ? "✓" : "*")}] {d.Language,-12} {d.Name}");
-            StatusBar.SetText($"Doc: {docs.Count} document(s) open.");
+            StatusBar.SetText($"Doc: {docs.Count} open.");
         }
 
         private void Button_TextDocInfo_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var info = Document.GetTextDocumentInfo();
-            if (info == null) { OutputWindow.Log("[TextDoc] Not a text document (or none active)."); return; }
-            OutputWindow.Activate();
-            OutputWindow.Log($"[TextDoc] Lines : {info.FirstLine}–{info.LastLine} ({info.LastLine} total)");
-            OutputWindow.Log($"[TextDoc] Chars : {info.TotalChars}");
-            OutputWindow.Log($"[TextDoc] Preview: \"{Truncate(info.Preview, 160)}\"");
-            StatusBar.SetText($"TextDoc: {info.LastLine} lines, {info.TotalChars} chars.");
+            if (info == null) { OutputWindow.Log("[TextDoc] Not a text document."); return; }
+            OutputWindow.Log($"[TextDoc] Lines={info.LastLine}  Chars={info.TotalChars}");
+            OutputWindow.Log($"  Preview: \"{Truncate(info.Preview, 160)}\"");
+            StatusBar.SetText($"TextDoc: {info.LastLine} lines.");
         }
 
         private void Button_DocReadLines_Click(object sender, RoutedEventArgs e)
@@ -288,17 +248,15 @@ namespace AsyncToolWindowSample.ToolWindows
             ThreadHelper.ThrowIfNotOnUIThread();
             string lines = Document.ReadLines(1, 6);
             if (lines == null) { LogNoDoc("[TextDoc]"); return; }
-            OutputWindow.Activate();
-            OutputWindow.Log("[TextDoc] Lines 1–5:");
-            OutputWindow.Log(Truncate(lines, 400));
-            StatusBar.SetText("TextDoc: lines 1–5 read.");
+            OutputWindow.Log("[TextDoc] Lines 1–5:"); OutputWindow.Log(Truncate(lines, 400));
+            StatusBar.SetText("Lines 1–5 read.");
         }
 
         private void Button_DocSave_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            bool ok  = Document.SaveActiveDocument();
-            string msg = ok ? "[Doc] Active document saved." : "[Doc] No active document to save.";
+            bool ok = Document.SaveActiveDocument();
+            string msg = ok ? "[Doc] Saved." : "[Doc] No active document.";
             OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
@@ -308,7 +266,7 @@ namespace AsyncToolWindowSample.ToolWindows
             var info = Document.GetActiveDocumentInfo();
             if (info == null) { LogNoDoc("[Doc]"); return; }
             Document.FormatDocument();
-            string msg = $"[Doc] Edit.FormatDocument executed on {info.Name}.";
+            string msg = $"[Doc] FormatDocument on {info.Name}.";
             OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
@@ -316,39 +274,30 @@ namespace AsyncToolWindowSample.ToolWindows
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             Document.SaveAll();
-            OutputWindow.Log("[Doc] File.SaveAll executed.");
-            StatusBar.SetText("All documents saved.");
+            OutputWindow.Log("[Doc] SaveAll."); StatusBar.SetText("All saved.");
         }
 
         private void Button_DocGoToLine_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             Document.GoToLine(1);
-            OutputWindow.Log("[Doc] Edit.GoToLine 1 executed.");
-            StatusBar.SetText("Navigated to line 1.");
+            OutputWindow.Log("[Doc] GoToLine 1."); StatusBar.SetText("Line 1.");
         }
 
         // ================================================================== //
-        //  §5 PROJECT & SOLUTION APIs                                         //
+        //  §5 PROJECT & SOLUTION                                              //
         // ================================================================== //
 
         private void Button_SolInfo_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var info = Project.GetSolutionInfo();
-            if (info == null)
-            {
-                OutputWindow.Log("[Solution] No solution is open.");
-                StatusBar.SetText("No solution open.");
-                return;
-            }
+            if (info == null) { OutputWindow.Log("[Solution] No solution open."); return; }
             OutputWindow.Activate();
-            OutputWindow.Log($"[Solution] Path        : {info.FullName}");
-            OutputWindow.Log($"[Solution] IsOpen      : {info.IsOpen}   IsDirty: {info.IsDirty}");
-            OutputWindow.Log($"[Solution] Projects    : {info.ProjectCount}");
-            OutputWindow.Log($"[Solution] ActiveConfig: {info.ActiveConfig}");
-            OutputWindow.Log($"[Solution] LastBuild   : {(info.LastBuildInfo == 0 ? "SUCCESS" : info.LastBuildInfo == -1 ? "(n/a)" : $"FAILED ({info.LastBuildInfo})")}");
-            StatusBar.SetText($"Solution: {info.ProjectCount} project(s) | {info.ActiveConfig}");
+            OutputWindow.Log($"[Solution] {info.FullName}");
+            OutputWindow.Log($"  IsDirty={info.IsDirty}  Projects={info.ProjectCount}  Config={info.ActiveConfig}");
+            OutputWindow.Log($"  LastBuild={( info.LastBuildInfo == 0 ? "SUCCESS" : info.LastBuildInfo == -1 ? "(n/a)" : $"FAILED ({info.LastBuildInfo})" )}");
+            StatusBar.SetText($"Solution: {info.ProjectCount} project(s)");
         }
 
         private void Button_ProjList_Click(object sender, RoutedEventArgs e)
@@ -356,35 +305,19 @@ namespace AsyncToolWindowSample.ToolWindows
             ThreadHelper.ThrowIfNotOnUIThread();
             var projects = Project.GetAllProjects();
             OutputWindow.Activate();
-            OutputWindow.Log($"[Projects] {projects.Count} project(s) in solution:");
+            OutputWindow.Log($"[Projects] {projects.Count} project(s):");
             foreach (var p in projects)
-            {
-                OutputWindow.Log($"  • {p.Name}");
-                OutputWindow.Log($"    Assembly : {p.AssemblyName ?? "(n/a)"}");
-                OutputWindow.Log($"    Framework: {p.TargetFw    ?? "(n/a)"}");
-                OutputWindow.Log($"    Output   : {p.OutputType  ?? "(n/a)"} → {p.OutputPath ?? "(n/a)"}");
-            }
-            StatusBar.SetText($"Projects: {projects.Count} found.");
+                OutputWindow.Log($"  • {p.Name}  [{p.AssemblyName ?? "?"}]  {p.TargetFw ?? ""}  {p.OutputType ?? ""}");
+            StatusBar.SetText($"Projects: {projects.Count}.");
         }
 
         private void Button_ProjActiveDoc_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var info = Project.GetActiveDocumentProject();
-            if (info == null)
-            {
-                OutputWindow.Log("[Project] No active document or project not found.");
-                StatusBar.SetText("No project for active document.");
-                return;
-            }
+            if (info == null) { OutputWindow.Log("[Project] No project found for active doc."); return; }
             OutputWindow.Activate();
-            OutputWindow.Log($"[Project] Name       : {info.Name}");
-            OutputWindow.Log($"[Project] UniqueName : {info.UniqueName}");
-            OutputWindow.Log($"[Project] FullName   : {info.FullName}");
-            OutputWindow.Log($"[Project] Assembly   : {info.AssemblyName ?? "(n/a)"}");
-            OutputWindow.Log($"[Project] RootNS     : {info.RootNamespace ?? "(n/a)"}");
-            OutputWindow.Log($"[Project] TargetFw   : {info.TargetFw ?? "(n/a)"}");
-            OutputWindow.Log($"[Project] OutputType : {info.OutputType ?? "(n/a)"}");
+            OutputWindow.Log($"[Project] {info.Name}  Assembly={info.AssemblyName}  FW={info.TargetFw}");
             StatusBar.SetText($"Project: {info.Name}");
         }
 
@@ -392,74 +325,173 @@ namespace AsyncToolWindowSample.ToolWindows
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var refs = Project.GetReferencesOfActiveProject();
-            if (refs.Count == 0)
-            {
-                OutputWindow.Log("[Refs] No references found (or active doc has no C#/VB project).");
-                StatusBar.SetText("No references found.");
-                return;
-            }
+            if (refs.Count == 0) { OutputWindow.Log("[Refs] No references (or not C#/VB project)."); return; }
             OutputWindow.Activate();
             OutputWindow.Log($"[Refs] {refs.Count} reference(s):");
             foreach (var r in refs)
                 OutputWindow.Log($"  {r.Name,-40} v{r.Version}  [{r.Type}]");
-            StatusBar.SetText($"References: {refs.Count} found.");
+            StatusBar.SetText($"Refs: {refs.Count}.");
         }
 
         private void Button_ProjFiles_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var items = Project.GetProjectItemsOfActiveProject();
-            if (items.Count == 0)
-            {
-                OutputWindow.Log("[Files] No items found (or no active project).");
-                StatusBar.SetText("No project items found.");
-                return;
-            }
+            if (items.Count == 0) { OutputWindow.Log("[Files] No items."); return; }
             OutputWindow.Activate();
-            OutputWindow.Log($"[Files] {items.Count} item(s) in project:");
-            int shown = 0;
+            OutputWindow.Log($"[Files] {items.Count} item(s):");
+            int n = 0;
             foreach (var item in items)
             {
-                if (shown++ > 50) { OutputWindow.Log("  … (truncated)"); break; }
+                if (n++ > 50) { OutputWindow.Log("  … (truncated)"); break; }
                 string indent = new string(' ', item.Depth * 2);
-                string tag    = item.IsFolder ? "[DIR]" : "[FILE]";
-                OutputWindow.Log($"  {indent}{tag} {item.Name}  BA={item.BuildAction ?? "-"}");
+                OutputWindow.Log($"  {indent}{(item.IsFolder ? "[DIR]" : "[FILE]")} {item.Name}  BA={item.BuildAction ?? "-"}");
             }
-            StatusBar.SetText($"Project items: {items.Count} found.");
+            StatusBar.SetText($"Files: {items.Count}.");
         }
 
         private void Button_ProjConfig_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var cfg = Project.GetActiveBuildConfig();
-            if (cfg == null)
-            {
-                OutputWindow.Log("[Config] No active project or config not available.");
-                StatusBar.SetText("No build config found.");
-                return;
-            }
+            if (cfg == null) { OutputWindow.Log("[Config] Not available."); return; }
             OutputWindow.Activate();
-            OutputWindow.Log($"[Config] Configuration : {cfg.ConfigName}|{cfg.Platform}");
-            OutputWindow.Log($"[Config] IsBuildable   : {cfg.IsBuildable}");
-            OutputWindow.Log($"[Config] OutputPath    : {cfg.OutputPath ?? "(n/a)"}");
-            OutputWindow.Log($"[Config] Optimize      : {cfg.Optimize}");
-            OutputWindow.Log($"[Config] Defines       : {cfg.Defines ?? "(n/a)"}");
-            StatusBar.SetText($"Build config: {cfg.ConfigName}|{cfg.Platform}");
+            OutputWindow.Log($"[Config] {cfg.ConfigName}|{cfg.Platform}  Build={cfg.IsBuildable}  Out={cfg.OutputPath}  Opt={cfg.Optimize}");
+            StatusBar.SetText($"Config: {cfg.ConfigName}|{cfg.Platform}");
         }
 
         private void Button_SolBuild_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var info = Project.GetSolutionInfo();
-            if (info == null || !info.IsOpen)
-            {
-                OutputWindow.Log("[Build] No solution open.");
-                StatusBar.SetText("No solution open.");
-                return;
-            }
-            OutputWindow.Log("[Build] Triggering solution build (async)…");
-            StatusBar.SetText("Building solution…");
+            if (info == null || !info.IsOpen) { OutputWindow.Log("[Build] No solution open."); return; }
+            OutputWindow.Log("[Build] Triggered."); StatusBar.SetText("Building…");
             Project.BuildSolution(waitForFinish: false);
+        }
+
+        // ================================================================== //
+        //  §6 MENU & COMMAND                                                  //
+        // ================================================================== //
+
+        private void Button_MenuCmdState_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            var snap = Menu.GetSnapshot();
+            OutputWindow.Activate();
+            OutputWindow.Log("[Menu] Dynamic command state:");
+            OutputWindow.Log($"  ToggleChecked    : {snap.ToggleChecked}");
+            OutputWindow.Log($"  DocActionLabel   : {snap.DocActionLabel}");
+            OutputWindow.Log($"  ContextInfoEnabled: {snap.ContextInfoEnabled}");
+            StatusBar.SetText($"Menu: Toggle={snap.ToggleChecked}");
+        }
+
+        private void Button_MenuToggle_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            Menu.FireToggleCommand();
+            var snap = Menu.GetSnapshot();
+            string msg = $"[Menu] Toggle fired → Checked={snap.ToggleChecked}";
+            OutputWindow.Log(msg);
+            StatusBar.SetText(msg);
+        }
+
+        private void Button_MenuDocAction_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            // Directly call execute logic (same as clicking menu item)
+            string err1 = Menu.ExecuteVsCommand("AsyncToolWindowSample.DocAction");
+            if (err1 != null) OutputWindow.Log($"[Menu] DocAction: {err1}");
+            else OutputWindow.Log("[Menu] DocAction command fired.");
+            StatusBar.SetText(err1 == null ? "Menu: DocAction fired." : $"Menu error: {err1}");
+        }
+
+        private void Button_MenuContextInfo_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            string err2 = Menu.ExecuteVsCommand("AsyncToolWindowSample.ContextInfo");
+            if (err2 != null) OutputWindow.Log($"[Menu] ContextInfo: {err2}");
+            else OutputWindow.Log("[Menu] ContextInfo command fired.");
+            StatusBar.SetText(err2 == null ? "Menu: ContextInfo fired." : $"Menu error: {err2}");
+        }
+
+        private void Button_MenuVsCmd_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            var docInfo = Document.GetActiveDocumentInfo();
+            if (docInfo == null) { LogNoDoc("[Menu]"); return; }
+            string fmtErr = Menu.ExecuteVsCommand("Edit.FormatDocument");
+            string msg = fmtErr == null
+                ? $"[Menu] Executed Edit.FormatDocument on {docInfo.Name}"
+                : $"[Menu] FormatDocument error: {fmtErr}";
+            OutputWindow.Log(msg);
+            StatusBar.SetText(msg);
+        }
+
+        // ================================================================== //
+        //  §7 TOOLBAR & COMMANDBAR                                            //
+        // ================================================================== //
+
+        private void Button_BarList_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            var bars = Toolbar.GetAllCommandBars();
+            OutputWindow.Activate();
+            OutputWindow.Log($"[Toolbar] {bars.Count} CommandBar(s) found:");
+            int shown = 0;
+            foreach (var bar in bars)
+            {
+                if (shown++ > 40) { OutputWindow.Log("  … (truncated)"); break; }
+                string vis = bar.IsVisible ? "visible" : "hidden";
+                OutputWindow.Log($"  [{vis}] [{bar.Type,-14}] {bar.Name}  ({bar.ControlCount} controls)  pos={bar.Position}");
+            }
+            StatusBar.SetText($"CommandBars: {bars.Count} total.");
+        }
+
+        private void Button_BarStandard_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            var info = Toolbar.GetStandardBarInfo("Standard");
+            if (info == null) { OutputWindow.Log("[Toolbar] 'Standard' bar not found."); return; }
+            OutputWindow.Activate();
+            OutputWindow.Log($"[Toolbar] Standard bar: Type={info.Type}  Visible={info.IsVisible}  Controls={info.ControlCount}  Pos={info.Position}");
+            StatusBar.SetText("Standard toolbar info shown.");
+        }
+
+        private void Button_BarCreate_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            Toolbar.CreateCustomToolbar();
+            StatusBar.SetText("Custom toolbar created/shown.");
+        }
+
+        private void Button_BarShow_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            Toolbar.ShowCustomToolbar();
+            StatusBar.SetText("Custom toolbar shown.");
+        }
+
+        private void Button_BarHide_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            Toolbar.HideCustomToolbar();
+            StatusBar.SetText("Custom toolbar hidden.");
+        }
+
+        private void Button_BarDelete_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            Toolbar.DeleteCustomToolbar();
+            StatusBar.SetText("Custom toolbar deleted.");
+        }
+
+        private void Button_BarStatus_Click(object sender, RoutedEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            bool vis = Toolbar.IsCustomToolbarVisible();
+            string msg = $"[Toolbar] Custom toolbar: {(vis ? "VISIBLE" : "HIDDEN / NOT CREATED")}";
+            OutputWindow.Log(msg);
+            StatusBar.SetText(msg);
         }
 
         // ================================================================== //
@@ -469,36 +501,22 @@ namespace AsyncToolWindowSample.ToolWindows
         private void Button_EventSubscribe_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            if (Events.IsSubscribed)
-            {
-                OutputWindow.Log("[Events] Already subscribed.");
-                StatusBar.SetText("Events: already subscribed.");
-                return;
-            }
-            Events.Subscribe();
-            StatusBar.SetText("Events: subscribed.");
+            if (Events.IsSubscribed) { OutputWindow.Log("[Events] Already subscribed."); return; }
+            Events.Subscribe(); StatusBar.SetText("Events: subscribed.");
         }
 
         private void Button_EventUnsubscribe_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            if (!Events.IsSubscribed)
-            {
-                OutputWindow.Log("[Events] Not currently subscribed.");
-                StatusBar.SetText("Events: not subscribed.");
-                return;
-            }
-            Events.Unsubscribe();
-            StatusBar.SetText("Events: unsubscribed.");
+            if (!Events.IsSubscribed) { OutputWindow.Log("[Events] Not subscribed."); return; }
+            Events.Unsubscribe(); StatusBar.SetText("Events: unsubscribed.");
         }
 
         private void Button_EventStatus_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            string state  = Events.IsSubscribed ? "ACTIVE" : "INACTIVE";
-            string msg    = $"[Events] Status: {state}";
-            OutputWindow.Log(msg);
-            StatusBar.SetText(msg);
+            string msg = $"[Events] Status: {(Events.IsSubscribed ? "ACTIVE" : "INACTIVE")}";
+            OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
         // ================================================================== //
@@ -514,13 +532,12 @@ namespace AsyncToolWindowSample.ToolWindows
             OutputWindow.Log($"  AutoFormat         : {Options.AutoFormat}");
             OutputWindow.Log($"  MaxLogItems        : {Options.MaxLogItems}");
             OutputWindow.Log($"  EnableSelectionLog : {Options.EnableSelectionLog}");
-            StatusBar.SetText("Options: displayed in Output pane.");
+            StatusBar.SetText("Options shown.");
         }
 
         private void Button_OptOpen_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            OutputWindow.Log("[Options] Opening Tools › Options dialog…");
             Options.OpenOptionsDialog();
         }
 
@@ -531,46 +548,24 @@ namespace AsyncToolWindowSample.ToolWindows
         private void Button_TaggerStatus_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            // The TodoTagger is a MEF component — it is active as long as there is
-            // a text buffer open. We verify by checking whether MEF editor is available.
             var view = Selection.GetActiveWpfTextView();
-            if (view == null)
-            {
-                OutputWindow.Log("[Tagger] No active editor pane — TodoTagger not active.");
-                StatusBar.SetText("Tagger: no active editor.");
-                return;
-            }
-            OutputWindow.Log("[Tagger] TodoTagger is ACTIVE on the current buffer.");
-            OutputWindow.Log($"  ContentType : {view.TextBuffer.ContentType.TypeName}");
-            OutputWindow.Log($"  Buffer size : {view.TextBuffer.CurrentSnapshot.Length} chars");
-            OutputWindow.Log("  Every 'TODO' token in this file is highlighted automatically.");
-            StatusBar.SetText("Tagger: active on current buffer.");
+            if (view == null) { OutputWindow.Log("[Tagger] No active editor."); return; }
+            OutputWindow.Log("[Tagger] TodoTagger ACTIVE on current buffer.");
+            OutputWindow.Log($"  ContentType={view.TextBuffer.ContentType.TypeName}  Size={view.TextBuffer.CurrentSnapshot.Length} chars");
+            StatusBar.SetText("Tagger: active.");
         }
 
         private void Button_TaggerCount_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var view = Selection.GetActiveWpfTextView();
-            if (view == null)
-            {
-                OutputWindow.Log("[Tagger] No active editor pane.");
-                StatusBar.SetText("Tagger: no active editor.");
-                return;
-            }
-
+            if (view == null) { OutputWindow.Log("[Tagger] No active editor."); return; }
             string text  = view.TextBuffer.CurrentSnapshot.GetText();
-            int    count = 0;
-            int    idx   = 0;
-            const string keyword = "TODO";
-            while ((idx = text.IndexOf(keyword, idx, StringComparison.OrdinalIgnoreCase)) >= 0)
-            {
-                count++;
-                idx += keyword.Length;
-            }
-
-            string msg = $"[Tagger] Found {count} TODO token(s) in current buffer.";
-            OutputWindow.Log(msg);
-            StatusBar.SetText(msg);
+            int    count = 0, idx = 0;
+            while ((idx = text.IndexOf("TODO", idx, StringComparison.OrdinalIgnoreCase)) >= 0)
+            { count++; idx += 4; }
+            string msg = $"[Tagger] {count} TODO token(s) in buffer.";
+            OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
         // ------------------------------------------------------------------ //
@@ -581,8 +576,7 @@ namespace AsyncToolWindowSample.ToolWindows
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             string msg = $"{prefix} No active document.";
-            OutputWindow.Log(msg);
-            StatusBar.SetText(msg);
+            OutputWindow.Log(msg); StatusBar.SetText(msg);
         }
 
         private static string Truncate(string s, int max)

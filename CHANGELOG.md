@@ -5,100 +5,85 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] – 2026-03-19 (feat: project-events-options-tagger)
+## [Unreleased] – 2026-03-19 (feat: menu-toolbar)
 
 ### Added
 
-#### `src/Services/ProjectService.cs` *(new)*
-- `GetSolutionInfo()` – snapshot của solution (path, IsDirty, ProjectCount, ActiveConfig, LastBuildInfo).
-- `BuildSolution()`, `CleanSolution()` – trigger build/clean.
-- `GetAllProjects()` – liệt kê tất cả projects với Assembly, TargetFw, OutputType, OutputPath.
-- `GetActiveDocumentProject()` – project của active document.
-- `GetReferencesOfActiveProject()` – dùng `VSLangProj.VSProject`; trả về Name, Path, Version, Type.
-- `GetProjectItemsOfActiveProject()` – duyệt cây file đệ quy; có Depth, BuildAction, IsFolder.
-- `GetActiveBuildConfig()` – ConfigName, Platform, IsBuildable, OutputPath, Optimize, Defines.
-- **DTOs:** `SolutionInfo`, `ProjectInfo`, `ReferenceInfo`, `ProjectItemInfo`, `BuildConfigInfo`.
+#### `src/PackageGuids.cs` *(new)*
+- Tập trung toàn bộ GUID/ID constants: `PackageGuids` + `PackageIds`.
+- `[Guid]` trên `MyPackage` giờ dùng `PackageGuids.PackageGuidString` thay magic string.
 
-#### `src/Services/EventService.cs` *(new)*
-- Subscribe/Unsubscribe tất cả DTE events: Build, Solution, Document, Window, Selection, Debugger.
-- Giữ strong references đến event sinks (tránh GC collect).
-- `EventFired` event để UI layer lắng nghe log messages.
-- `IDisposable` – tự unsubscribe khi package dispose.
+#### `src/Services/MenuService.cs` *(new)*
+- `InitializeAsync()` — đăng ký 3 `OleMenuCommand` với `BeforeQueryStatus`:
+  - `CmdIdToggleFeature` (0x0200): check-mark style, label "Feature ON/OFF", Ctrl+Shift+F9.
+  - `CmdIdDocAction` (0x0201): label thay đổi theo `dte.ActiveDocument.Name`, disabled khi không có doc.
+  - `CmdIdContextInfo` (0x0202): disabled khi không có doc, xuất hiện cả Tools menu lẫn code-editor context menu.
+- `GetSnapshot()` — DTO trạng thái 3 commands cho tool window.
+- `FireToggleCommand()` — kích hoạt toggle programmatically.
+- `ExecuteVsCommand()` — gọi bất kỳ VS command theo tên chuỗi.
+- `GetCommandName()` — tìm tên đã đăng ký của command theo GUID+ID.
+- **DTO:** `DynamicCommandsSnapshot`.
 
-#### `src/Services/OptionsService.cs` + `SampleOptionsPage` *(new)*
-- `SampleOptionsPage : DialogPage` – 4 settings: ServerUrl, AutoFormat, MaxLogItems, EnableSelectionLog.
-- `OptionsService` – typed accessors + `OpenOptionsDialog()`.
-- `MyPackage` có `[ProvideOptionPage]` attribute đăng ký page với VS.
+#### `src/Services/ToolbarService.cs` *(new)*
+- `GetAllCommandBars()` — liệt kê tất cả CommandBars trong VS.
+- `GetStandardBarInfo(name)` — thông tin một toolbar cụ thể.
+- `CreateCustomToolbar()` — tạo toolbar "AsyncToolWindowSample Toolbar" với 1 demo button (FaceId=59).
+- `ShowCustomToolbar()`, `HideCustomToolbar()`, `DeleteCustomToolbar()`.
+- `IsCustomToolbarVisible()` — kiểm tra trạng thái.
+- **DTO:** `CommandBarInfo`.
 
-#### `src/Tagging/TodoTagger.cs` *(new)*
-- `TodoTaggerProvider` – MEF `ITaggerProvider` với ContentType="text".
-- `TodoTagger` – scan buffer tìm "TODO" (case-insensitive), emit `TextMarkerTag` "HighlightedReference".
-- Singleton per buffer; invalidate toàn bộ file khi buffer thay đổi.
-- Dispose-safe: hủy đăng ký `buffer.Changed`.
+#### `src/VSCommandTable.vsct`
+- Thêm `<Groups>`: `DynamicCmdGroup` (parent=Tools menu), `ContextMenuGroup` (parent=code-editor context menu).
+- Thêm 3 `<Button>` entries cho §6 commands.
+- `CmdIdContextInfo` xuất hiện ở cả 2 groups (dual parent).
+- Thêm `<KeyBinding>`: Ctrl+Shift+F9 → `CmdIdToggleFeature`.
+- Thêm `<IDSymbol>` entries cho 5 IDs mới.
 
-#### `docs/tutorials/project-events-options-tagger_2026-03-19.md` *(new)*
+#### `docs/tutorials/menu-toolbar_2026-03-19.md` *(new)*
 
 ### Changed
 
-#### `src/ToolWindows/SampleToolWindowState.cs`
-- Thêm properties: `Project`, `Events`, `Options`.
-
 #### `src/MyPackage.cs`
-- Construct và wire `ProjectService`, `EventService`, `OptionsService`.
-- Thêm `[ProvideOptionPage]` attribute.
-- Override `Dispose()` để gọi `Events.Dispose()`.
+- Dùng `PackageGuids.PackageGuidString` trong `[Guid]` attribute.
+- Construct và wire `MenuService`, `ToolbarService`.
+- Gọi `await Menu.InitializeAsync()` sau khi switch sang UI thread.
+
+#### `src/ToolWindows/SampleToolWindowState.cs`
+- Thêm properties: `Menu`, `Toolbar`.
 
 #### `src/ToolWindows/SampleToolWindowControl.xaml`
-- Thêm 4 section mới với 12 button:
-  - §5: Show Solution Info, List All Projects, Active Doc Project Info, List References, List Project Files, Active Build Config, Build Solution (7 buttons)
-  - §9: Subscribe to Events, Unsubscribe from Events, Show Event Status (3 buttons)
-  - §10: Show Current Options, Open Options Dialog (2 buttons)
-  - §12: TODO Tagger: Active?, Count TODOs in Buffer (2 buttons)
+- Thêm section §6 với 5 button: Show Dynamic Cmd State, Fire Toggle, Fire DocAction, Fire ContextInfo, Exec FormatDoc.
+- Thêm section §7 với 7 button: List All CommandBars, Show Standard Bar Info, Create/Show/Hide/Delete Custom Toolbar, Custom Toolbar Status.
 
 #### `src/ToolWindows/SampleToolWindowControl.xaml.cs`
-- Thêm 12 handler tương ứng cho tất cả button mới.
-- Thêm helper `LogNoDoc()`.
+- Thêm 12 handler cho §6/§7 buttons.
 
 #### `src/AsyncToolWindowSample.csproj`
-- Thêm Compile entries: `ProjectService.cs`, `EventService.cs`, `OptionsService.cs`, `Tagging\TodoTagger.cs`.
-- Thêm Reference: `VSLangProj` (cần cho `VSProject.References` trong §5).
+- Thêm Compile entries: `PackageGuids.cs`, `MenuService.cs`, `ToolbarService.cs`.
 
 #### `README.md`
-- Cập nhật Features, Source map cho §5, §9, §10, §12.
+- Cập nhật Features table và Source map cho §6/§7.
+
+---
+
+## [Unreleased] – 2026-03-19 (feat: project-events-options-tagger)
+
+### Added
+- `ProjectService.cs` (§5), `EventService.cs` (§9), `OptionsService.cs` + `SampleOptionsPage` (§10), `Tagging/TodoTagger.cs` (§12).
 
 ---
 
 ## [Unreleased] – 2026-03-19 (fix: CS1061-document-encoding)
 
 ### Fixed
-- `DocumentService.cs` – CS1061: xóa `doc.Encoding` (không tồn tại trong EnvDTE 8.0).
-- `SampleToolWindowControl.xaml.cs` – xóa dòng log Encoding tương ứng.
+- `DocumentService.cs` – CS1061: xóa `doc.Encoding`.
 
 ---
 
 ## [Unreleased] – 2026-03-19 (feat: document-file-apis)
 
 ### Added
-- `DocumentService.cs` với đầy đủ Document & File APIs (Section 4).
-- Tutorial: `docs/tutorials/document-file-apis_2026-03-19.md`.
-
-### Changed
-- `SampleToolWindowState.cs`, `MyPackage.cs`, XAML, `csproj` – integrate DocumentService.
-
----
-
-## [Unreleased] – 2026-03-19 (patch: CS0122-getservice)
-
-### Fixed
-- `SelectionService.cs` – CS0122: dùng `IServiceProvider` thay `AsyncPackage.GetService`.
-
----
-
-## [Unreleased] – 2026-03-19 (patch: compiler-errors)
-
-### Fixed
-- `StatusBarService.cs` – CS0165 `frozen = 0`; CS1503 `ref ulong → ref uint`.
-- `SampleToolWindowControl.xaml.cs` – `uint cookie`.
+- `DocumentService.cs` (§4).
 
 ---
 

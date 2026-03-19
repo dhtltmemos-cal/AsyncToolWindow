@@ -1,14 +1,40 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
   <Extern href="stdidcmd.h"/>
   <Extern href="vsshlids.h"/>
   <Include href="KnownImageIds.vsct"/>
 
   <Commands package="guidMyPackage">
+
+    <!-- ================================================================ -->
+    <!--  Groups                                                           -->
+    <!-- ================================================================ -->
+    <Groups>
+
+      <!-- Group under View > Other Windows (houses the Show Tool Window button) -->
+      <!-- (Implicit in the Button definition below; no explicit Group needed)   -->
+
+      <!-- Group under Tools menu for the three dynamic commands -->
+      <Group guid="guidMyPackageCmdSet" id="DynamicCmdGroup" priority="0x0700">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
+      </Group>
+
+      <!-- Group in the code-editor context menu for the ContextInfo command -->
+      <Group guid="guidMyPackageCmdSet" id="ContextMenuGroup" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN"/>
+      </Group>
+
+    </Groups>
+
+    <!-- ================================================================ -->
+    <!--  Buttons                                                          -->
+    <!-- ================================================================ -->
     <Buttons>
+
+      <!-- Original: open the Sample Tool Window -->
       <Button guid="guidMyPackageCmdSet" id="ShowToolWindowId" priority="0x0100" type="Button">
-        <!-- parent is View > Other Windows -->
         <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1"/>
         <Icon guid="ImageCatalogGuid" id="ImageIcon"/>
         <CommandFlag>IconIsMoniker</CommandFlag>
@@ -16,14 +42,78 @@
           <ButtonText>Sample Tool Window</ButtonText>
         </Strings>
       </Button>
+
+      <!-- §6 — Toggle command (check-mark, appears in Tools menu) -->
+      <Button guid="guidMyPackageCmdSet" id="CmdIdToggleFeature" priority="0x0200" type="Button">
+        <Parent guid="guidMyPackageCmdSet" id="DynamicCmdGroup"/>
+        <CommandFlag>DynamicItemStart</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Feature OFF</ButtonText>
+          <CommandName>AsyncToolWindowSample.ToggleFeature</CommandName>
+        </Strings>
+      </Button>
+
+      <!-- §6 — Doc-Action command (label updates with active document name) -->
+      <Button guid="guidMyPackageCmdSet" id="CmdIdDocAction" priority="0x0201" type="Button">
+        <Parent guid="guidMyPackageCmdSet" id="DynamicCmdGroup"/>
+        <CommandFlag>DynamicItemStart</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Doc Action</ButtonText>
+          <CommandName>AsyncToolWindowSample.DocAction</CommandName>
+        </Strings>
+      </Button>
+
+      <!-- §6 — Context-info command (also in code-editor right-click menu) -->
+      <Button guid="guidMyPackageCmdSet" id="CmdIdContextInfo" priority="0x0100" type="Button">
+        <!-- Primary parent: Tools menu group -->
+        <Parent guid="guidMyPackageCmdSet" id="DynamicCmdGroup"/>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Show Context Info</ButtonText>
+          <CommandName>AsyncToolWindowSample.ContextInfo</CommandName>
+        </Strings>
+      </Button>
+
+      <!-- §6 — Context-info also exposed in code-editor right-click menu -->
+      <Button guid="guidMyPackageCmdSet" id="CmdIdContextInfo" priority="0x0100" type="Button">
+        <Parent guid="guidMyPackageCmdSet" id="ContextMenuGroup"/>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Show Context Info</ButtonText>
+        </Strings>
+      </Button>
+
     </Buttons>
+
   </Commands>
 
+  <!-- ================================================================== -->
+  <!--  Keyboard shortcuts                                                  -->
+  <!-- ================================================================== -->
+  <KeyBindings>
+    <!-- Ctrl+Shift+F9 → Toggle Feature -->
+    <KeyBinding guid="guidMyPackageCmdSet" id="CmdIdToggleFeature"
+                editor="guidVSStd97" key1="F9" mod1="Control Shift"/>
+  </KeyBindings>
+
+  <!-- ================================================================== -->
+  <!--  Symbols                                                             -->
+  <!-- ================================================================== -->
   <Symbols>
-    <GuidSymbol name="guidMyPackage" value="{6e3b2e95-902b-4385-a966-30c06ab3c7a6}" />
+    <GuidSymbol name="guidMyPackage"    value="{6e3b2e95-902b-4385-a966-30c06ab3c7a6}" />
 
     <GuidSymbol name="guidMyPackageCmdSet" value="{9cc1062b-4c82-46d2-adcb-f5c17d55fb85}">
-      <IDSymbol name="ShowToolWindowId" value="0x0100" />
+      <!-- Existing -->
+      <IDSymbol name="ShowToolWindowId"  value="0x0100" />
+      <!-- §6 new commands -->
+      <IDSymbol name="DynamicCmdGroup"   value="0x1100" />
+      <IDSymbol name="ContextMenuGroup"  value="0x1200" />
+      <IDSymbol name="CmdIdToggleFeature" value="0x0200" />
+      <IDSymbol name="CmdIdDocAction"     value="0x0201" />
+      <IDSymbol name="CmdIdContextInfo"   value="0x0202" />
     </GuidSymbol>
   </Symbols>
+
 </CommandTable>
